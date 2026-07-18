@@ -8,7 +8,7 @@ SDK Flutter para captura de erros e eventos do **CrashLens** — uma alternativa
 # pubspec.yaml
 dependencies:
   crashlens_flutter:
-    path: ./caminho/para/crashlens_flutter
+    git: https://github.com/rafaelfernandesx/crashlens_package.git
 ```
 
 ## 🚀 Inicialização

@@ -10,9 +10,13 @@ class EventQueue {
   Timer? _flushTimer;
   bool _isFlushing = false;
 
+  /// Callback chamado após um lote ser enviado com sucesso.
+  final void Function(List<CrashLensEvent> sentEvents)? onBatchSent;
+
   EventQueue({
     required EventApiClient apiClient,
     this.maxRetries = 3,
+    this.onBatchSent,
   }) : _apiClient = apiClient;
 
   /// Adiciona um evento à fila
@@ -53,6 +57,9 @@ class EventQueue {
             _queue.add(queued);
           }
         }
+      } else {
+        // Notifica que o lote foi enviado com sucesso
+        onBatchSent?.call(events);
       }
     } catch (e) {
       // Em caso de erro, re-adiciona tudo

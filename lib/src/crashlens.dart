@@ -43,7 +43,7 @@ class CrashLens {
   SessionTracker? _session;
   SharedPreferences? _prefs;
 
-  static const _localKey = 'crashlens_local_errors';
+  static const _storageKey = 'crashlens_events';
   static const _maxLocalErrors = 500;
 
   CrashLens._(this._options);
@@ -66,10 +66,11 @@ class CrashLens {
     // Coleta informações do dispositivo e app
     await _collectDeviceAndAppInfo();
 
-    // Inicializa SharedPreferences para persistência local
-    if (_options.captureLocally) {
-      _prefs = await SharedPreferences.getInstance();
-    }
+    // Inicializa SharedPreferences (sempre — para persistência e reenvio)
+    _prefs = await SharedPreferences.getInstance();
+
+    // Reenvia eventos pendentes de execuções anteriores
+    await _resendPending();
 
     // Configura client HTTP
     _apiClient = EventApiClient(
@@ -81,6 +82,7 @@ class CrashLens {
     _queue = EventQueue(
       apiClient: _apiClient!,
       maxRetries: _options.maxRetries,
+      onBatchSent: _onBatchSent,
     );
     _queue!.startAutoFlush(
       interval: Duration(seconds: _options.flushIntervalSeconds),
@@ -473,21 +475,85 @@ class CrashLens {
     _queue?.enqueue(finalEvent);
     debugPrint('[CrashLens] Evento enfileirado: ${event.severity.value} | ${event.message}');
 
-    // Salva localmente de forma persistente
-    if (_options.captureLocally && _prefs != null) {
+    // Persiste sempre no SharedPreferences (reenvio em caso de crash)
+    if (_prefs != null) {
       _persistError(finalEvent);
     }
   }
 
-  /// Salva erro no SharedPreferences
+  /// Salva erro no SharedPreferences com flag sent=false
   Future<void> _persistError(CrashLensEvent event) async {
-    final errors = _prefs!.getStringList(_localKey) ?? [];
-    errors.add(jsonEncode(event.toJson()));
+    final raw = _prefs!.getStringList(_storageKey) ?? [];
+    final stored = _StoredEvent(event: event, sent: false);
+    raw.add(jsonEncode(stored.toJson()));
     // Mantém apenas os últimos N erros
-    if (errors.length > _maxLocalErrors) {
-      errors.removeRange(0, errors.length - _maxLocalErrors);
+    if (raw.length > _maxLocalErrors) {
+      raw.removeRange(0, raw.length - _maxLocalErrors);
     }
-    await _prefs!.setStringList(_localKey, errors);
+    await _prefs!.setStringList(_storageKey, raw);
+  }
+
+  /// Reenfileira eventos não enviados de execuções anteriores.
+  Future<void> _resendPending() async {
+    final raw = _prefs?.getStringList(_storageKey) ?? [];
+    final unsent = raw
+        .map((j) {
+          try {
+            final decoded = jsonDecode(j) as Map<String, dynamic>;
+            return _StoredEvent.fromJson(decoded);
+          } catch (_) {
+            return null;
+          }
+        })
+        .whereType<_StoredEvent>()
+        .where((s) => !s.sent)
+        .toList();
+
+    if (unsent.isEmpty) return;
+    debugPrint('[CrashLens] Reenviando ${unsent.length} eventos pendentes...');
+    for (final stored in unsent) {
+      _queue?.enqueue(stored.event);
+    }
+  }
+
+  /// Callback chamado pela EventQueue quando um lote é enviado com sucesso.
+  void _onBatchSent(List<CrashLensEvent> sentEvents) {
+    final prefs = _prefs;
+    if (prefs == null) return;
+
+    final raw = prefs.getStringList(_storageKey) ?? [];
+    if (raw.isEmpty) return;
+
+    final sentIds = sentEvents.map((e) => e.eventId).whereType<String>().toSet();
+    final updated = <String>[];
+
+    for (final entry in raw) {
+      try {
+        final decoded = jsonDecode(entry) as Map<String, dynamic>;
+        final stored = _StoredEvent.fromJson(decoded);
+        final eventId = stored.event.eventId;
+
+        if (eventId != null && sentIds.contains(eventId)) {
+          if (_options.captureLocally) {
+            // Mantém, marca como enviado
+            updated.add(jsonEncode(_StoredEvent(event: stored.event, sent: true).toJson()));
+          }
+          // captureLocally=false: descarta (não adiciona)
+        } else {
+          updated.add(entry);
+        }
+      } catch (_) {
+        // Entries inválidas: mantém por segurança
+        updated.add(entry);
+      }
+    }
+
+    var finalList = updated;
+    if (_options.captureLocally && finalList.length > _maxLocalErrors) {
+      finalList = finalList.sublist(finalList.length - _maxLocalErrors);
+    }
+
+    prefs.setStringList(_storageKey, finalList);
   }
 
   /// Gera um hash SHA-256 do conteúdo completo do evento (excluindo timestamp)
@@ -582,26 +648,52 @@ class CrashLens {
   static bool get isCaptureLocallyEnabled => instance._options.captureLocally;
 
   /// Lista de eventos capturados localmente (persistidos via SharedPreferences).
-  /// Requer [CrashLensOptions.captureLocally] = true.
+  /// Retorna lista vazia se [CrashLensOptions.captureLocally] = false.
   static List<CrashLensEvent> get localErrors {
+    final instance = CrashLens.instance;
+    if (!instance._options.captureLocally) return [];
     final prefs = instance._prefs;
     if (prefs == null) return [];
-    final raw = prefs.getStringList(_localKey) ?? [];
-    return raw.map((j) => CrashLensEvent.fromJson(jsonDecode(j) as Map<String, dynamic>)).toList();
+    final raw = prefs.getStringList(_storageKey) ?? [];
+    return raw
+        .map((j) {
+          try {
+            final decoded = jsonDecode(j) as Map<String, dynamic>;
+            return _StoredEvent.fromJson(decoded).event;
+          } catch (_) {
+            return null;
+          }
+        })
+        .whereType<CrashLensEvent>()
+        .toList();
   }
 
-  /// Retorna os erros locais diretamente do SharedPreferences (recarrega do disco).
-  static List<CrashLensEvent> getLocalErrors() {
-    if (CrashLens.instance._options.captureLocally == false){
-      debugPrint('[CrashLens] captureLocally está desativado. Nenhum erro local será retornado.');
-    }
-    return localErrors;
-  }
+  /// Retorna os erros locais do SharedPreferences.
+  /// Idêntico a [localErrors], mas sem o aviso de [captureLocally] desativado.
+  static List<CrashLensEvent> getLocalErrors() => localErrors;
 
-  /// Limpa os erros persistidos localmente.
+  /// Limpa todos os erros persistidos localmente.
   static Future<void> clearLocalErrors() async {
     final prefs = instance._prefs;
     if (prefs == null) return;
-    await prefs.remove(_localKey);
+    await prefs.remove(_storageKey);
   }
+}
+
+/// Evento armazenado no SharedPreferences com flag de envio.
+class _StoredEvent {
+  final CrashLensEvent event;
+  final bool sent;
+
+  const _StoredEvent({required this.event, required this.sent});
+
+  Map<String, dynamic> toJson() => {
+        'e': event.toJson(),
+        's': sent,
+      };
+
+  factory _StoredEvent.fromJson(Map<String, dynamic> json) => _StoredEvent(
+        event: CrashLensEvent.fromJson(json['e'] as Map<String, dynamic>),
+        sent: json['s'] as bool? ?? false,
+      );
 }

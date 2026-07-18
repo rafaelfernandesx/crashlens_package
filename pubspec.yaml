@@ -11,7 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.2.0
-  package_info_plus: ^8.0.0
+  package_info_plus: ^9.0.0
   device_info_plus: ^10.0.0
   connectivity_plus: ^6.0.0
   stack_trace: ^1.11.0

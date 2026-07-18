@@ -55,6 +55,11 @@ class CrashLensOptions {
   /// Retorne o evento modificado, ou null para descartá-lo.
   final CrashLensEvent? Function(CrashLensEvent event)? beforeSend;
 
+  /// Salvar eventos localmente para depuração no dispositivo.
+  /// Use [CrashLens.getLocalErrors] para acessar e [CrashLens.clearLocalErrors]
+  /// para limpar.
+  final bool captureLocally;
+
   CrashLensOptions({
     required this.apiKey,
     this.baseUrl = 'https://apicrashlens.laziv.com/api',
@@ -73,5 +78,6 @@ class CrashLensOptions {
     this.httpTimeoutMs = 15000,
     this.maxRetries = 3,
     this.beforeSend,
+    this.captureLocally = false,
   });
 }

@@ -108,6 +108,9 @@ class CrashLensEvent {
       );
 
   Map<String, dynamic> toJson() => {
+        'eventId': eventId,
+        'apiKey': apiKey,
+        'projectId': projectId,
         'message': message,
         'severity': severity.value,
         'exceptionType': exceptionType,
@@ -131,7 +134,7 @@ class CrashLensEvent {
   factory CrashLensEvent.fromJson(Map<String, dynamic> json) =>
       CrashLensEvent(
         eventId: json['eventId'] as String?,
-        apiKey: json['apiKey'] as String,
+        apiKey: (json['apiKey'] as String?) ?? '',
         projectId: json['projectId'] as String?,
         message: json['message'] as String,
         severity: EventSeverity.fromString(json['severity'] as String? ?? 'error'),

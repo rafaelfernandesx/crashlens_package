@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stack_trace/stack_trace.dart' as st;
 import 'package:uuid/uuid.dart';
 import '../crashlens_flutter.dart';
@@ -40,6 +41,10 @@ class CrashLens {
   PackageInfo? _packageInfo;
   bool _initialized = false;
   SessionTracker? _session;
+  SharedPreferences? _prefs;
+
+  static const _localKey = 'crashlens_local_errors';
+  static const _maxLocalErrors = 500;
 
   CrashLens._(this._options);
 
@@ -60,6 +65,11 @@ class CrashLens {
   Future<void> _initialize() async {
     // Coleta informações do dispositivo e app
     await _collectDeviceAndAppInfo();
+
+    // Inicializa SharedPreferences para persistência local
+    if (_options.captureLocally) {
+      _prefs = await SharedPreferences.getInstance();
+    }
 
     // Configura client HTTP
     _apiClient = EventApiClient(
@@ -422,7 +432,7 @@ class CrashLens {
           return;
         }
         event = modified;
-      } catch (e, s) {
+      } catch (e) {
         debugPrint('[CrashLens] Erro no beforeSend: $e');
         // Continua com o evento original
       }
@@ -462,6 +472,22 @@ class CrashLens {
 
     _queue?.enqueue(finalEvent);
     debugPrint('[CrashLens] Evento enfileirado: ${event.severity.value} | ${event.message}');
+
+    // Salva localmente de forma persistente
+    if (_options.captureLocally && _prefs != null) {
+      _persistError(finalEvent);
+    }
+  }
+
+  /// Salva erro no SharedPreferences
+  Future<void> _persistError(CrashLensEvent event) async {
+    final errors = _prefs!.getStringList(_localKey) ?? [];
+    errors.add(jsonEncode(event.toJson()));
+    // Mantém apenas os últimos N erros
+    if (errors.length > _maxLocalErrors) {
+      errors.removeRange(0, errors.length - _maxLocalErrors);
+    }
+    await _prefs!.setStringList(_localKey, errors);
   }
 
   /// Gera um hash SHA-256 do conteúdo completo do evento (excluindo timestamp)
@@ -550,4 +576,32 @@ class CrashLens {
 
   bool get isInitialized => _initialized;
   int get pendingEvents => _queue?.pendingCount ?? 0;
+
+  /// Verifica se [CrashLensOptions.captureLocally] está ativado.
+  /// Útil para condicionar a exibição de telas de logs/erros locais.
+  static bool get isCaptureLocallyEnabled => instance._options.captureLocally;
+
+  /// Lista de eventos capturados localmente (persistidos via SharedPreferences).
+  /// Requer [CrashLensOptions.captureLocally] = true.
+  static List<CrashLensEvent> get localErrors {
+    final prefs = instance._prefs;
+    if (prefs == null) return [];
+    final raw = prefs.getStringList(_localKey) ?? [];
+    return raw.map((j) => CrashLensEvent.fromJson(jsonDecode(j) as Map<String, dynamic>)).toList();
+  }
+
+  /// Retorna os erros locais diretamente do SharedPreferences (recarrega do disco).
+  static List<CrashLensEvent> getLocalErrors() {
+    if (CrashLens.instance._options.captureLocally == false){
+      debugPrint('[CrashLens] captureLocally está desativado. Nenhum erro local será retornado.');
+    }
+    return localErrors;
+  }
+
+  /// Limpa os erros persistidos localmente.
+  static Future<void> clearLocalErrors() async {
+    final prefs = instance._prefs;
+    if (prefs == null) return;
+    await prefs.remove(_localKey);
+  }
 }

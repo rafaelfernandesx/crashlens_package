@@ -672,6 +672,23 @@ class CrashLens {
   /// Idêntico a [localErrors], mas sem o aviso de [captureLocally] desativado.
   static List<CrashLensEvent> getLocalErrors() => localErrors;
 
+  /// Remove um único erro local pelo [eventId].
+  static Future<void> deleteLocalError(String eventId) async {
+    final prefs = instance._prefs;
+    if (prefs == null) return;
+    final raw = prefs.getStringList(_storageKey) ?? [];
+    final updated = <String>[];
+    for (final entry in raw) {
+      try {
+        final decoded = jsonDecode(entry) as Map<String, dynamic>;
+        final stored = _StoredEvent.fromJson(decoded);
+        if (stored.event.eventId == eventId) continue; // remove
+      } catch (_) {}
+      updated.add(entry);
+    }
+    await prefs.setStringList(_storageKey, updated);
+  }
+
   /// Limpa todos os erros persistidos localmente.
   static Future<void> clearLocalErrors() async {
     final prefs = instance._prefs;

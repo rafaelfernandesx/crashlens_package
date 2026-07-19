@@ -115,7 +115,7 @@ class CrashLens {
       release: _options.release ?? _packageInfo?.version,
       appVersion: _packageInfo?.version,
       buildNumber: _packageInfo?.buildNumber,
-      platform: defaultTargetPlatform.toString(),
+      platform: _platformName(),
       deviceId: _deviceInfo?.deviceModel,
     );
 
@@ -124,6 +124,24 @@ class CrashLens {
 
     _initialized = true;
     debugPrint('[CrashLens] Inicializado com sucesso. Sessão: ${_session!.sessionId}');
+  }
+
+  /// Converte defaultTargetPlatform para string legível
+  static String _platformName() {
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return 'android';
+      case TargetPlatform.iOS:
+        return 'ios';
+      case TargetPlatform.windows:
+        return 'windows';
+      case TargetPlatform.macOS:
+        return 'macos';
+      case TargetPlatform.linux:
+        return 'linux';
+      default:
+        return defaultTargetPlatform.toString();
+    }
   }
 
   Future<void> _collectDeviceAndAppInfo() async {
@@ -138,7 +156,7 @@ class CrashLens {
         _deviceInfo = DeviceInfoData(
           deviceName: '${info.brand} ${info.model}',
           deviceModel: info.model,
-          deviceOs: 'Android',
+          deviceOs: 'android',
           osVersion: info.version.release,
           deviceType: 'phone',
           isPhysicalDevice: info.isPhysicalDevice,
@@ -149,7 +167,7 @@ class CrashLens {
         _deviceInfo = DeviceInfoData(
           deviceName: info.name,
           deviceModel: info.model,
-          deviceOs: 'iOS',
+          deviceOs: 'ios',
           osVersion: info.systemVersion,
           deviceType: 'phone',
           isPhysicalDevice: info.isPhysicalDevice,
@@ -159,7 +177,7 @@ class CrashLens {
         final info = await deviceInfoPlugin.windowsInfo;
         _deviceInfo = DeviceInfoData(
           deviceName: info.computerName,
-          deviceOs: 'Windows',
+          deviceOs: 'windows',
           osVersion: '${info.majorVersion}.${info.minorVersion}.${info.buildNumber}',
           deviceType: 'desktop',
           cpuArchitecture: '${info.majorVersion}.${info.minorVersion}.${info.buildNumber}',
@@ -167,7 +185,7 @@ class CrashLens {
       } else if (defaultTargetPlatform == TargetPlatform.macOS) {
         final info = await deviceInfoPlugin.macOsInfo;
         _deviceInfo = DeviceInfoData(
-          deviceOs: 'macOS',
+          deviceOs: 'macos',
           osVersion: info.osRelease,
           deviceType: 'desktop',
         );
@@ -175,7 +193,7 @@ class CrashLens {
         final info = await deviceInfoPlugin.linuxInfo;
         _deviceInfo = DeviceInfoData(
           deviceName: info.name,
-          deviceOs: 'Linux',
+          deviceOs: 'linux',
           osVersion: info.versionId,
           deviceType: 'desktop',
         );

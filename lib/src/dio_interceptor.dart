@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../crashlens_flutter.dart';
 
@@ -56,6 +57,8 @@ class CrashLensDioInterceptor extends Interceptor {
           'url': options.uri.toString(),
           'status_code': statusCode,
           'duration_ms': duration,
+          'request_body': _sanitizeBodyToJson(options.data),
+          'response_body': _safeResponseBody(error?.response?.data),
           'error': error?.message,
         },
       ));
@@ -76,37 +79,68 @@ class CrashLensDioInterceptor extends Interceptor {
           },
           extra: {
             'duration_ms': duration,
-            'query_params': _sanitizeMap(options.queryParameters),
-            'headers': _sanitizeHeaders(options.headers),
-            'data': _sanitizeBody(options.data),
-            'response_data': error.response?.data?.toString(),
+            'query_params': jsonEncode(_sanitizeMap(options.queryParameters)),
+            'request_headers': jsonEncode(_sanitizeHeaders(options.headers)),
+            'request_body': _sanitizeBodyToJson(options.data),
+            'response_body': _safeResponseBody(error?.response?.data),
           },
         );
       }
     } catch (_) {}
   }
 
-  Map<String, dynamic> _sanitizeHeaders(Map<String, dynamic> headers) {
-    final sanitized = <String, dynamic>{};
+  Map<String, String> _sanitizeHeaders(Map<String, dynamic> headers) {
+    final sanitized = <String, String>{};
     headers.forEach((key, value) {
-      sanitized[key] = sanitizeHeaders.contains(key) ? '***' : value;
+      sanitized[key] = sanitizeHeaders.contains(key) ? '***' : '${value ?? ''}';
     });
     return sanitized;
   }
 
-  dynamic _sanitizeBody(dynamic data) {
-    if (data is Map) {
-      final sanitized = Map<String, dynamic>.from(data);
-      for (final key in sanitizeBodyKeys) {
-        if (sanitized.containsKey(key)) sanitized[key] = '***';
+  String? _sanitizeBodyToJson(dynamic data) {
+    if (data == null) return null;
+    try {
+      if (data is Map) {
+        final sanitized = Map<String, dynamic>.from(data);
+        for (final key in sanitizeBodyKeys) {
+          if (sanitized.containsKey(key)) sanitized[key] = '***';
+        }
+        return jsonEncode(sanitized);
       }
-      return sanitized.toString();
+      if (data is List) {
+        return jsonEncode(data);
+      }
+      if (data is String) {
+        try {
+          final parsed = jsonDecode(data);
+          if (parsed is Map) {
+            final sanitized = Map<String, dynamic>.from(parsed);
+            for (final key in sanitizeBodyKeys) {
+              if (sanitized.containsKey(key)) sanitized[key] = '***';
+            }
+            return jsonEncode(sanitized);
+          }
+        } catch (_) {}
+        return data;
+      }
+      return data.toString();
+    } catch (_) {
+      return data?.toString();
     }
-    return data?.toString();
   }
 
-  Map<String, dynamic> _sanitizeMap(Map<String, dynamic> map) {
+  String? _safeResponseBody(dynamic data) {
+    if (data == null) return null;
+    try {
+      if (data is Map || data is List) return jsonEncode(data);
+      return data.toString();
+    } catch (_) {
+      return data?.toString();
+    }
+  }
+
+  Map<String, String> _sanitizeMap(Map<String, dynamic> map) {
     if (map.isEmpty) return {};
-    return Map<String, dynamic>.from(map);
+    return map.map((k, v) => MapEntry(k, '$v'));
   }
 }

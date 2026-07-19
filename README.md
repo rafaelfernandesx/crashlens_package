@@ -23,7 +23,6 @@ void main() async {
     options: CrashLensOptions(
       apiKey: 'chave_do_ambiente',
       baseUrl: 'https://apicrashlens.laziv.com/api',
-      environment: 'production',
       enableFlutterErrorCapture: true,
       enablePlatformDispatcherCapture: true,
       enableZoneCapture: true,
@@ -51,7 +50,6 @@ await CrashLens.init(
     baseUrl: 'https://apicrashlens.laziv.com/api', // URL do backend
 
     // Identificação
-    environment: 'production',            // Nome do ambiente
     user: CrashLensUser(                  // Usuário atual
       id: 'user-123',
       name: 'João',
@@ -244,7 +242,6 @@ void main() async {
     options: CrashLensOptions(
       apiKey: 'd2367497-59c2-43e6-805f-c48cb874b67a',
       baseUrl: 'https://apicrashlens.laziv.com/api',
-      environment: 'development',
       user: CrashLensUser(id: 'user-123', email: 'test@test.com'),
       tags: {'app': 'CrashLens Demo'},
       enableFlutterErrorCapture: true,

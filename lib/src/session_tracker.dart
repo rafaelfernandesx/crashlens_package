@@ -10,7 +10,6 @@ class SessionTracker {
   final String sessionId;
   final DateTime startedAt;
   final String? release;
-  final String environment;
   final String? appVersion;
   final String? buildNumber;
   final String? platform;
@@ -24,7 +23,6 @@ class SessionTracker {
   SessionTracker({
     required this.apiKey,
     required this.baseUrl,
-    required this.environment,
     String? sessionId,
     this.release,
     this.appVersion,

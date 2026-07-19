@@ -9,9 +9,6 @@ class CrashLensOptions {
   /// URL base da API CrashLens
   final String baseUrl;
 
-  /// Ambiente (production, staging, development)
-  final String environment;
-
   /// Versão da release do app
   final String? release;
 
@@ -63,7 +60,6 @@ class CrashLensOptions {
   CrashLensOptions({
     required this.apiKey,
     this.baseUrl = 'https://apicrashlens.laziv.com/api',
-    this.environment = 'production',
     this.release,
     this.flushIntervalSeconds = 5,
     this.maxBreadcrumbs = 100,

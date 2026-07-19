@@ -15,7 +15,6 @@ class CrashLensEvent {
   final String? stackTrace;
   final String? fingerprint;
   final String? release;
-  final String? environment;
   final String? context;
   final CrashLensUser? user;
   final String? url;
@@ -43,7 +42,6 @@ class CrashLensEvent {
     this.stackTrace,
     this.fingerprint,
     this.release,
-    this.environment,
     this.context,
     this.user,
     this.url,
@@ -71,7 +69,6 @@ class CrashLensEvent {
     String? stackTrace,
     String? fingerprint,
     String? release,
-    String? environment,
     String? context,
     CrashLensUser? user,
     String? url,
@@ -94,7 +91,6 @@ class CrashLensEvent {
         stackTrace: stackTrace ?? this.stackTrace,
         fingerprint: fingerprint ?? this.fingerprint,
         release: release ?? this.release,
-        environment: environment ?? this.environment,
         context: context ?? this.context,
         user: user ?? this.user,
         url: url ?? this.url,
@@ -118,7 +114,6 @@ class CrashLensEvent {
         'stackTrace': stackTrace,
         'fingerprint': fingerprint,
         'release': release,
-        'environment': environment,
         'context': context,
         'user': user?.toJson(),
         'url': url,
@@ -143,7 +138,6 @@ class CrashLensEvent {
         stackTrace: json['stackTrace'] as String?,
         fingerprint: json['fingerprint'] as String?,
         release: json['release'] as String?,
-        environment: json['environment'] as String?,
         context: json['context'] as String?,
         user: json['user'] != null
             ? CrashLensUser.fromJson(json['user'] as Map<String, dynamic>)

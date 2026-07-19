@@ -111,7 +111,6 @@ class CrashLens {
     _session = SessionTracker(
       apiKey: _options.apiKey,
       baseUrl: _options.baseUrl,
-      environment: _options.environment,
       release: _options.release ?? _packageInfo?.version,
       appVersion: _packageInfo?.version,
       buildNumber: _packageInfo?.buildNumber,
@@ -208,7 +207,6 @@ class CrashLens {
         stackTrace: stack.toString(),
         fingerprint: _generateFingerprint(error, stack),
         release: _options.release ?? _packageInfo?.version,
-        environment: _options.environment,
         user: _options.user,
         tags: _options.tags,
         deviceInfo: _deviceInfo,
@@ -251,8 +249,6 @@ class CrashLens {
       stackTrace: stack.toString(),
       fingerprint: instance._generateFingerprint(error, stack),
       release: instance._options.release ?? instance._packageInfo?.version,
-      environment: instance._options.environment,
-      context: context,
       user: instance._options.user,
       tags: {...?instance._options.tags, ...?tags},
       extra: extra,
@@ -277,9 +273,7 @@ class CrashLens {
       message: message,
       severity: severity,
       release: instance._options.release ?? instance._packageInfo?.version,
-      environment: instance._options.environment,
       user: instance._options.user,
-      tags: {...?instance._options.tags, ...?tags},
       extra: extra,
       deviceInfo: instance._deviceInfo,
       breadcrumbs: List.from(instance._breadcrumbs),
@@ -311,7 +305,6 @@ class CrashLens {
       stackTrace: stackTrace,
       fingerprint: fingerprint,
       release: instance._options.release ?? instance._packageInfo?.version,
-      environment: instance._options.environment,
       context: context,
       user: instance._options.user,
       tags: {...?instance._options.tags, ...?tags},
@@ -340,7 +333,6 @@ class CrashLens {
     instance._options = CrashLensOptions(
       apiKey: instance._options.apiKey,
       baseUrl: instance._options.baseUrl,
-      environment: instance._options.environment,
       release: instance._options.release,
       user: user,
       tags: instance._options.tags,
@@ -368,7 +360,6 @@ class CrashLens {
     instance._options = CrashLensOptions(
       apiKey: instance._options.apiKey,
       baseUrl: instance._options.baseUrl,
-      environment: instance._options.environment,
       release: instance._options.release,
       user: instance._options.user,
       tags: updatedTags,
@@ -395,8 +386,6 @@ class CrashLens {
     instance._options = CrashLensOptions(
       apiKey: instance._options.apiKey,
       baseUrl: instance._options.baseUrl,
-      environment: instance._options.environment,
-      release: instance._options.release,
       user: instance._options.user,
       tags: updatedTags,
       beforeSend: instance._options.beforeSend,
@@ -453,8 +442,6 @@ class CrashLens {
       stackTrace: event.stackTrace,
       fingerprint: effectiveFingerprint,
       release: event.release ?? _options.release ?? _packageInfo?.version,
-      environment: event.environment ?? _options.environment,
-      context: event.context,
       user: event.user ?? _options.user,
       url: event.url,
       tags: {...?_options.tags, ...?event.tags},
@@ -570,7 +557,6 @@ class CrashLens {
     buffer.write('|${event.user?.toJson().toString()}');
     buffer.write('|${event.url}');
     buffer.write('|${event.release}');
-    buffer.write('|${event.environment}');
     buffer.write('|${event.handled}');
 
     if (event.tags != null) {

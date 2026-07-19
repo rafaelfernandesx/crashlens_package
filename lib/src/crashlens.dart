@@ -40,6 +40,7 @@ class CrashLens {
   DeviceInfoData? _deviceInfo;
   PackageInfo? _packageInfo;
   bool _initialized = false;
+  bool _keyValid = true; // validado durante init
   SessionTracker? _session;
   SharedPreferences? _prefs;
 
@@ -89,6 +90,14 @@ class CrashLens {
       timeoutMs: _options.httpTimeoutMs,
     );
 
+    // Valida a API Key antes de ativar qualquer captura
+    _keyValid = await _apiClient!.validateApiKey(_options.apiKey);
+    if (!_keyValid) {
+      _initialized = true;
+      debugPrint('[CrashLens] ⚠️ API Key inválida. SDK não capturará eventos.');
+      return;
+    }
+
     // Configura fila de eventos — com callback para detectar quota excedida
     _queue = EventQueue(
       apiClient: _apiClient!,
@@ -120,19 +129,21 @@ class CrashLens {
     }
 
     // Inicia sessão com o client HTTP para enviar start/end ao backend
-    _session = SessionTracker(
-      apiKey: _options.apiKey,
-      baseUrl: _options.baseUrl,
-      apiClient: _apiClient,
-      release: _options.release ?? _packageInfo?.version,
-      appVersion: _packageInfo?.version,
-      buildNumber: _packageInfo?.buildNumber,
-      platform: _platformName(),
-      deviceId: _deviceInfo?.deviceModel,
-    );
+    if (_keyValid) {
+      _session = SessionTracker(
+        apiKey: _options.apiKey,
+        baseUrl: _options.baseUrl,
+        apiClient: _apiClient,
+        release: _options.release ?? _packageInfo?.version,
+        appVersion: _packageInfo?.version,
+        buildNumber: _packageInfo?.buildNumber,
+        platform: _platformName(),
+        deviceId: _deviceInfo?.deviceModel,
+      );
 
-    // Envia início da sessão para o backend
-    await _session!.start();
+      // Envia início da sessão para o backend
+      await _session!.start();
+    }
 
     _initialized = true;
     debugPrint('[CrashLens] Inicializado com sucesso. Sessão: ${_session!.sessionId}');
@@ -450,6 +461,9 @@ class CrashLens {
   /// Verifica se o SDK está pausado
   static bool get isPaused => instance._paused;
 
+  /// Verifica se a API Key é válida
+  static bool get isKeyValid => instance._keyValid;
+
   /// Define o usuário atual (similar ao [SentryUser]).
   /// As informações serão enviadas com todos os eventos subsequentes.
   static void setUser(CrashLensUser? user) {
@@ -527,6 +541,12 @@ class CrashLens {
   }
 
   void _capture(CrashLensEvent event) {
+    // API Key inválida — não captura nada
+    if (!_keyValid) {
+      debugPrint('[CrashLens] API Key inválida. Evento descartado.');
+      return;
+    }
+
     // SDK pausado por limite de plano excedido — não captura nada
     if (_paused) {
       debugPrint('[CrashLens] SDK pausado. Evento descartado: ${event.message}');

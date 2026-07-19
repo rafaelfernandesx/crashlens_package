@@ -9,6 +9,7 @@ export 'src/crashlens_options.dart';
 export 'src/session_tracker.dart';
 export 'src/navigator_observer.dart';
 export 'src/dio_interceptor.dart';
+export 'src/http/http_interceptor.dart';
 export 'src/models/event.dart';
 export 'src/models/user.dart';
 export 'src/models/breadcrumb.dart';

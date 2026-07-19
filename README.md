@@ -164,6 +164,37 @@ Tipos disponíveis: `navigation`, `http`, `user`, `ui`, `system`, `debug`, `erro
 
 ---
 
+### Interceptor Dio — Monitorar requisições HTTP
+
+```dart
+import 'package:dio/dio.dart';
+
+final dio = Dio()..interceptors.add(CrashLensDioInterceptor());
+```
+
+---
+
+### Interceptor `http` — Monitorar requisições HTTP
+
+```dart
+import 'package:http/http.dart' as http;
+
+// Opção 1: extensão
+final client = http.Client().withCrashLens;
+final response = await client.get(Uri.parse('https://api.exemplo.com/data'));
+
+// Opção 2: wrapper manual
+final client = CrashLensHttpClient(
+  http.Client(),
+  sanitizeHeaders: ['Authorization', 'Cookie'],
+  sanitizeBodyKeys: ['password', 'token'],
+);
+```
+
+Gera breadcrumbs e eventos de erro automaticamente para cada requisição.
+
+---
+
 ### `beforeSend` — Modificar ou descartar eventos
 
 ```dart

@@ -82,7 +82,7 @@ class CrashLensDioInterceptor extends Interceptor {
             'query_params': jsonEncode(_sanitizeMap(options.queryParameters)),
             'request_headers': jsonEncode(_sanitizeHeaders(options.headers)),
             'request_body': _sanitizeBodyToJson(options.data),
-            'response_body': _safeResponseBody(error?.response?.data),
+            'response_body': _safeResponseBody(error.response?.data),
           },
         );
       }

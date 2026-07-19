@@ -139,28 +139,23 @@ class EventApiClient {
         'X-API-Key': apiKey,
       };
 
-  /// Valida se a API Key é válida fazendo uma requisição leve
+  /// Valida se a API Key é válida chamando o endpoint dedicado de validação
   Future<bool> validateApiKey(String apiKey) async {
     try {
-      final uri = Uri.parse('$baseUrl/events');
-      // HEAD não é suportado pelo endpoint, usa POST com payload mínimo
+      final uri = Uri.parse('$baseUrl/api-keys/validate');
       final response = await _client
           .post(
             uri,
             headers: _headers(apiKey),
-            body: jsonEncode({
-              'message': '__crashlens_key_check__',
-              'severity': 'debug',
-              'timestamp': DateTime.now().toIso8601String(),
-            }),
+            body: jsonEncode({'apiKey': apiKey}),
           )
           .timeout(Duration(milliseconds: timeoutMs));
 
-      // 401 = chave inválida, 403 = sem permissão
-      if (response.statusCode == 401 || response.statusCode == 403) {
-        return false;
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        return body['valid'] == true;
       }
-      // 201, 200, 402 (quota excedida), 429 (rate limit) = chave válida
+      // 429 = rate limit do IP, considera válida para não bloquear
       return true;
     } catch (_) {
       // Timeout ou erro de rede — considera válida para não bloquear offline

@@ -43,8 +43,16 @@ class CrashLens {
   SessionTracker? _session;
   SharedPreferences? _prefs;
 
+  /// Flag persistente: SDK está pausado por limite de plano excedido
+  bool _paused = false;
+  DateTime? _pausedUntil;
+  Timer? _retryTimer;
+
   static const _storageKey = 'crashlens_events';
+  static const _pausedKey = 'crashlens_paused';
+  static const _pausedUntilKey = 'crashlens_paused_until';
   static const _maxLocalErrors = 500;
+  static const _retryIntervalMinutes = 15;
 
   CrashLens._(this._options);
 
@@ -69,6 +77,9 @@ class CrashLens {
     // Inicializa SharedPreferences (sempre — para persistência e reenvio)
     _prefs = await SharedPreferences.getInstance();
 
+    // Restaura estado de pausa (limite de plano excedido)
+    await _restorePausedState();
+
     // Reenvia eventos pendentes de execuções anteriores
     await _resendPending();
 
@@ -78,11 +89,12 @@ class CrashLens {
       timeoutMs: _options.httpTimeoutMs,
     );
 
-    // Configura fila de eventos
+    // Configura fila de eventos — com callback para detectar quota excedida
     _queue = EventQueue(
       apiClient: _apiClient!,
       maxRetries: _options.maxRetries,
       onBatchSent: _onBatchSent,
+      onQuotaExceeded: () => CrashLens.pause(reason: 'Limite do plano atingido (detectado pela API)'),
     );
     _queue!.startAutoFlush(
       interval: Duration(seconds: _options.flushIntervalSeconds),
@@ -362,6 +374,82 @@ class CrashLens {
     instance._session?.markCrashed();
   }
 
+  // ── Controle de pausa (limite de plano excedido) ──
+
+  /// Pausa o SDK — persiste a flag e para de enviar eventos
+  static void pause({String? reason}) {
+    final i = instance;
+    i._paused = true;
+    i._pausedUntil = DateTime.now().add(const Duration(minutes: _retryIntervalMinutes));
+    i._prefs?.setBool(_pausedKey, true);
+    i._prefs?.setString(_pausedUntilKey, i._pausedUntil!.toIso8601String());
+    i._queue?.pause();
+    debugPrint('[CrashLens] SDK pausado. Motivo: ${reason ?? "limite de plano"}');
+    _scheduleRetry(i);
+  }
+
+  /// Agenda verificação periódica para resumir
+  static void _scheduleRetry(CrashLens i) {
+    i._retryTimer?.cancel();
+    i._retryTimer = Timer(const Duration(minutes: _retryIntervalMinutes), () {
+      _tryResume(i);
+    });
+  }
+
+  /// Tenta resumir o SDK — faz uma requisição leve ao backend
+  static Future<void> _tryResume(CrashLens i) async {
+    if (!i._paused) return;
+    if (i._pausedUntil != null && DateTime.now().isBefore(i._pausedUntil!)) {
+      _scheduleRetry(i);
+      return;
+    }
+
+    debugPrint('[CrashLens] Tentando resumir SDK...');
+    final ok = await i._apiClient?.sendEvent(
+      CrashLensEvent(
+        apiKey: i._options.apiKey,
+        message: '__crashlens_health_check__',
+        severity: EventSeverity.debug,
+      ),
+    );
+
+    if (ok == true) {
+      i._paused = false;
+      i._pausedUntil = null;
+      i._prefs?.remove(_pausedKey);
+      i._prefs?.remove(_pausedUntilKey);
+      i._queue?.resume();
+      debugPrint('[CrashLens] SDK resumido com sucesso.');
+    } else {
+      i._pausedUntil = DateTime.now().add(const Duration(minutes: _retryIntervalMinutes));
+      i._prefs?.setString(_pausedUntilKey, i._pausedUntil!.toIso8601String());
+      _scheduleRetry(i);
+    }
+  }
+
+  /// Restaura estado de pausa do armazenamento local
+  Future<void> _restorePausedState() async {
+    final paused = _prefs?.getBool(_pausedKey) ?? false;
+    if (paused) {
+      final untilStr = _prefs?.getString(_pausedUntilKey);
+      final until = untilStr != null ? DateTime.tryParse(untilStr) : null;
+      if (until != null && DateTime.now().isBefore(until)) {
+        _paused = true;
+        _pausedUntil = until;
+        _queue?.pause();
+        debugPrint('[CrashLens] SDK restaurado como pausado até $until');
+        _scheduleRetry(this);
+        return;
+      }
+      // Já passou o tempo de pausa — tenta resumir
+      _prefs?.remove(_pausedKey);
+      _prefs?.remove(_pausedUntilKey);
+    }
+  }
+
+  /// Verifica se o SDK está pausado
+  static bool get isPaused => instance._paused;
+
   /// Define o usuário atual (similar ao [SentryUser]).
   /// As informações serão enviadas com todos os eventos subsequentes.
   static void setUser(CrashLensUser? user) {
@@ -439,6 +527,12 @@ class CrashLens {
   }
 
   void _capture(CrashLensEvent event) {
+    // SDK pausado por limite de plano excedido — não captura nada
+    if (_paused) {
+      debugPrint('[CrashLens] SDK pausado. Evento descartado: ${event.message}');
+      return;
+    }
+
     // Verifica sample rate
     if (_options.sampleRate < 1.0 && Random().nextDouble() > _options.sampleRate) {
       return;

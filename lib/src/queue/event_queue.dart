@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+
 import '../models/event.dart';
 import '../http/event_api_client.dart';
 
@@ -9,14 +11,19 @@ class EventQueue {
   final List<_QueuedEvent> _queue = [];
   Timer? _flushTimer;
   bool _isFlushing = false;
+  bool _paused = false;
 
   /// Callback chamado após um lote ser enviado com sucesso.
   final void Function(List<CrashLensEvent> sentEvents)? onBatchSent;
+
+  /// Callback chamado quando o limite do plano é excedido (402/429).
+  final VoidCallback? onQuotaExceeded;
 
   EventQueue({
     required EventApiClient apiClient,
     this.maxRetries = 3,
     this.onBatchSent,
+    this.onQuotaExceeded,
   }) : _apiClient = apiClient;
 
   /// Adiciona um evento à fila
@@ -39,6 +46,7 @@ class EventQueue {
 
   /// Envia todos os eventos pendentes
   Future<void> flush() async {
+    if (_paused) return;
     if (_isFlushing || _queue.isEmpty) return;
     _isFlushing = true;
 
@@ -48,6 +56,14 @@ class EventQueue {
     try {
       final events = batch.map((e) => e.event).toList();
       final success = await _apiClient.sendBatch(events);
+
+      // Se a API sinalizou limite excedido, pausa e notifica
+      if (_apiClient.quotaExceeded) {
+        _paused = true;
+        stopAutoFlush();
+        onQuotaExceeded?.call();
+        return;
+      }
 
       if (!success) {
         // Re-adiciona eventos que falharam com retry
@@ -79,6 +95,20 @@ class EventQueue {
   }
 
   int get pendingCount => _queue.length;
+
+  /// Pausa o envio de eventos (limite de plano excedido, etc.)
+  void pause() {
+    _paused = true;
+    stopAutoFlush();
+  }
+
+  /// Resume o envio de eventos
+  void resume() {
+    _paused = false;
+    if (_flushTimer == null && _queue.isNotEmpty) {
+      _startFlushTimer();
+    }
+  }
 
   void dispose() {
     stopAutoFlush();

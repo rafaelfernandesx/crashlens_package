@@ -9,6 +9,9 @@ class EventApiClient {
   final int timeoutMs;
   final http.Client _client;
 
+  /// Flag: o plano do workspace atingiu o limite. SDK deve pausar envios.
+  bool quotaExceeded = false;
+
   EventApiClient({
     required this.baseUrl,
     this.timeoutMs = 15000,
@@ -27,12 +30,15 @@ class EventApiClient {
           )
           .timeout(Duration(milliseconds: timeoutMs));
 
-      // 402 = plano excedido — não tenta mais
+      // 402 = plano excedido, 402/429 = bloqueado — não tenta mais
       if (response.statusCode == 402 || response.statusCode == 429) {
-        debugPrint('[CrashLens] Limite do plano atingido (${response.statusCode}). Eventos pausados.');
+        quotaExceeded = true;
+        debugPrint('[CrashLens] Limite do plano atingido (${response.statusCode}). SDK será pausado.');
         return false;
       }
 
+      // Resposta OK reseta o flag
+      quotaExceeded = false;
       return response.statusCode == 201 || response.statusCode == 200;
     } catch (e) {
       return false;
@@ -53,10 +59,12 @@ class EventApiClient {
           .timeout(Duration(milliseconds: timeoutMs));
 
       if (response.statusCode == 402 || response.statusCode == 429) {
-        debugPrint('[CrashLens] Limite do plano atingido em batch. Eventos pausados.');
+        quotaExceeded = true;
+        debugPrint('[CrashLens] Limite do plano atingido em batch. SDK será pausado.');
         return false;
       }
 
+      quotaExceeded = false;
       return response.statusCode == 201 || response.statusCode == 200;
     } catch (e) {
       return false;

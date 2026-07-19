@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/event.dart';
 
@@ -26,6 +27,12 @@ class EventApiClient {
           )
           .timeout(Duration(milliseconds: timeoutMs));
 
+      // 402 = plano excedido — não tenta mais
+      if (response.statusCode == 402 || response.statusCode == 429) {
+        debugPrint('[CrashLens] Limite do plano atingido (${response.statusCode}). Eventos pausados.');
+        return false;
+      }
+
       return response.statusCode == 201 || response.statusCode == 200;
     } catch (e) {
       return false;
@@ -44,6 +51,11 @@ class EventApiClient {
             body: jsonEncode(events.map((e) => e.toJson()).toList()),
           )
           .timeout(Duration(milliseconds: timeoutMs));
+
+      if (response.statusCode == 402 || response.statusCode == 429) {
+        debugPrint('[CrashLens] Limite do plano atingido em batch. Eventos pausados.');
+        return false;
+      }
 
       return response.statusCode == 201 || response.statusCode == 200;
     } catch (e) {

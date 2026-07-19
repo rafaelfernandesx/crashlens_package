@@ -144,7 +144,7 @@ class CrashLensHttpClient extends http.BaseClient {
           'url': url,
           'status_code': statusCode,
           'duration_ms': durationMs,
-          'request_body': _sanitizeJsonBody(requestBody),
+          'request_body': _sanitizeRequestBody(requestBody),
           'response_body': _sanitizeJsonBody(responseBody),
           'error': errorMessage,
         },
@@ -167,9 +167,9 @@ class CrashLensHttpClient extends http.BaseClient {
           },
           extra: {
             'duration_ms': durationMs,
-            'request_headers': _sanitizeHeaders(requestHeaders),
-            'request_body': _sanitizeJsonBody(requestBody),
-            'response_headers': _sanitizeHeaders(responseHeaders),
+            'request_headers': jsonEncode(_sanitizeHeaders(requestHeaders)),
+            'request_body': _sanitizeRequestBody(requestBody),
+            'response_headers': jsonEncode(_sanitizeHeaders(responseHeaders)),
             'response_body': _sanitizeJsonBody(responseBody),
             'error': errorMessage,
           },
@@ -178,22 +178,56 @@ class CrashLensHttpClient extends http.BaseClient {
     } catch (_) {}
   }
 
-  /// Sanitiza um body JSON, escondendo chaves sensíveis.
+  /// Sanitiza um body (JSON ou form-encoded), escondendo chaves sensíveis.
+  /// Retorna sempre uma string JSON válida.
+  String? _sanitizeRequestBody(String? body) {
+    if (body == null || body.isEmpty) return body;
+
+    // Tenta JSON primeiro
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        return jsonEncode(_redactSensitiveKeys(decoded));
+      }
+      return body;
+    } catch (_) {
+      // Não é JSON — tenta form-encoded
+    }
+
+    // Tenta form-encoded (name=valor&name2=valor2)
+    try {
+      final map = Uri.splitQueryString(body);
+      if (map.isNotEmpty) {
+        return jsonEncode(_redactSensitiveKeys(map));
+      }
+    } catch (_) {
+      // Não é form-encoded também
+    }
+
+    return body;
+  }
+
+  /// Sanitiza um body que JÁ é JSON, escondendo chaves sensíveis.
   String? _sanitizeJsonBody(String? body) {
     if (body == null || body.isEmpty) return body;
     try {
       final decoded = jsonDecode(body);
       if (decoded is Map<String, dynamic>) {
-        final sanitized = Map<String, dynamic>.from(decoded);
-        for (final key in sanitizeBodyKeys) {
-          if (sanitized.containsKey(key)) sanitized[key] = '***';
-        }
-        return jsonEncode(sanitized);
+        return jsonEncode(_redactSensitiveKeys(decoded));
       }
       return body;
     } catch (_) {
       return body;
     }
+  }
+
+  /// Substitui chaves sensíveis por '***'.
+  Map<String, dynamic> _redactSensitiveKeys(Map<String, dynamic> map) {
+    final sanitized = Map<String, dynamic>.from(map);
+    for (final key in sanitizeBodyKeys) {
+      if (sanitized.containsKey(key)) sanitized[key] = '***';
+    }
+    return sanitized;
   }
 
   Map<String, String> _sanitizeHeaders(Map<String, String>? headers) {

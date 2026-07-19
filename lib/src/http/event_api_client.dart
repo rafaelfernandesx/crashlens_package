@@ -21,10 +21,7 @@ class EventApiClient {
       final response = await _client
           .post(
             uri,
-            headers: {
-              'Content-Type': 'application/json',
-              'X-API-Key': event.apiKey,
-            },
+            headers: _headers(event.apiKey),
             body: jsonEncode(event.toJson()),
           )
           .timeout(Duration(milliseconds: timeoutMs));
@@ -43,10 +40,7 @@ class EventApiClient {
       final response = await _client
           .post(
             uri,
-            headers: {
-              'Content-Type': 'application/json',
-              'X-API-Key': events.first.apiKey,
-            },
+            headers: _headers(events.first.apiKey),
             body: jsonEncode(events.map((e) => e.toJson()).toList()),
           )
           .timeout(Duration(milliseconds: timeoutMs));
@@ -56,6 +50,74 @@ class EventApiClient {
       return false;
     }
   }
+
+  /// Envia o início de uma sessão para o backend
+  Future<bool> sendSessionStart({
+    required String apiKey,
+    required String sessionId,
+    required String startedAt,
+    String? platform,
+    String? appVersion,
+    String? buildNumber,
+    String? deviceId,
+    String? release,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/sessions');
+      final response = await _client
+          .post(
+            uri,
+            headers: _headers(apiKey),
+            body: jsonEncode({
+              'sessionId': sessionId,
+              'startedAt': startedAt,
+              'platform': platform,
+              'appVersion': appVersion,
+              'buildNumber': buildNumber,
+              'deviceId': deviceId,
+              'release': release,
+            }),
+          )
+          .timeout(Duration(milliseconds: timeoutMs));
+
+      return response.statusCode == 201 || response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Envia o fim de uma sessão para o backend
+  Future<bool> sendSessionEnd({
+    required String apiKey,
+    required String sessionId,
+    required String endedAt,
+    bool crashed = false,
+    int? duration,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/sessions/$sessionId/end');
+      final response = await _client
+          .put(
+            uri,
+            headers: _headers(apiKey),
+            body: jsonEncode({
+              'endedAt': endedAt,
+              'crashed': crashed,
+              'duration': duration,
+            }),
+          )
+          .timeout(Duration(milliseconds: timeoutMs));
+
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Map<String, String> _headers(String apiKey) => {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey,
+      };
 
   void dispose() {
     _client.close();

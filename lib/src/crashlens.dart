@@ -107,16 +107,20 @@ class CrashLens {
       _installAutoBreadcrumbs();
     }
 
-    // Inicia sessão
+    // Inicia sessão com o client HTTP para enviar start/end ao backend
     _session = SessionTracker(
       apiKey: _options.apiKey,
       baseUrl: _options.baseUrl,
+      apiClient: _apiClient,
       release: _options.release ?? _packageInfo?.version,
       appVersion: _packageInfo?.version,
       buildNumber: _packageInfo?.buildNumber,
       platform: defaultTargetPlatform.toString(),
       deviceId: _deviceInfo?.deviceModel,
     );
+
+    // Envia início da sessão para o backend
+    await _session!.start();
 
     _initialized = true;
     debugPrint('[CrashLens] Inicializado com sucesso. Sessão: ${_session!.sessionId}');
@@ -324,6 +328,20 @@ class CrashLens {
     if (instance._breadcrumbs.length > instance._options.maxBreadcrumbs) {
       instance._breadcrumbs.removeAt(0);
     }
+  }
+
+  /// Retorna o ID da sessão atual (para vincular a erros manualmente)
+  static String? get sessionId => instance._session?.sessionId;
+
+  /// Encerra a sessão atual e envia ao backend.
+  /// Chame ao colocar o app em background (AppLifecycleState.paused).
+  static Future<void> endSession() async {
+    await instance._session?.end();
+  }
+
+  /// Marca a sessão atual como crashed
+  static void markSessionCrashed() {
+    instance._session?.markCrashed();
   }
 
   /// Define o usuário atual (similar ao [SentryUser]).

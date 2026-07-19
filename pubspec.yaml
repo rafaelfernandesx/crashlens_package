@@ -1,6 +1,6 @@
 name: crashlens_flutter
 description: CrashLens SDK - Mini Sentry para Flutter. Captura erros, exceções, logs e informações do dispositivo.
-version: 0.1.0
+version: 0.2.0
 homepage: https://github.com/crashlens/sdk
 
 environment:

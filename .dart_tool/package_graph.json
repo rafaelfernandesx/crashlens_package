@@ -5,7 +5,7 @@
   "packages": [
     {
       "name": "crashlens_flutter",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "dependencies": [
         "connectivity_plus",
         "crypto",
@@ -176,7 +176,7 @@
     },
     {
       "name": "meta",
-      "version": "1.17.0",
+      "version": "1.18.0",
       "dependencies": []
     },
     {
@@ -231,7 +231,7 @@
     },
     {
       "name": "test_api",
-      "version": "0.7.10",
+      "version": "0.7.11",
       "dependencies": [
         "async",
         "boolean_selector",

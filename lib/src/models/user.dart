@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Descreve o usuário atual associado ao aplicativo.
 ///
 /// Similar ao [SentryUser](https://develop.sentry.dev/sdk/event-payloads/user/).
@@ -41,7 +43,7 @@ class CrashLensUser {
         if (email != null) 'email': email,
         if (ipAddress != null) 'ip_address': ipAddress,
         if (name != null) 'name': name,
-        if (data != null && data!.isNotEmpty) 'data': data,
+        if (data != null && data!.isNotEmpty) 'data': jsonEncode(data),
       };
 
   factory CrashLensUser.fromJson(Map<String, dynamic> json) => CrashLensUser(
@@ -50,6 +52,6 @@ class CrashLensUser {
         email: json['email'] as String?,
         ipAddress: json['ip_address'] as String?,
         name: json['name'] as String?,
-        data: json['data'] as Map<String, dynamic>?,
+        data: jsonDecode(json['data'] as String? ?? '') as Map<String, dynamic>?,
       );
 }

@@ -52,6 +52,8 @@ class CrashLensUser {
         email: json['email'] as String?,
         ipAddress: json['ip_address'] as String?,
         name: json['name'] as String?,
-        data: jsonDecode(json['data'] as String? ?? '') as Map<String, dynamic>?,
+        data: json['data'] != null
+            ? jsonDecode(json['data'] as String) as Map<String, dynamic>?
+            : null,
       );
 }

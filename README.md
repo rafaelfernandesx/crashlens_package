@@ -7,8 +7,11 @@ SDK Flutter para captura de erros e eventos do **CrashLens** — uma alternativa
 ```yaml
 # pubspec.yaml
 dependencies:
-  crashlens_flutter:
-    git: https://github.com/rafaelfernandesx/crashlens_package.git
+  crashlens_flutter: ^0.4.1
+```
+
+```bash
+flutter pub get
 ```
 
 ## 🚀 Inicialização
@@ -243,8 +246,7 @@ await CrashLens.close();
 |-----------|------|--------|-----------|
 | `apiKey` | `String` | **obrigatório** | Chave do ambiente |
 | `baseUrl` | `String` | `https://apicrashlens.laziv.com/api` | URL do backend |
-| `environment` | `String` | `production` | Nome do ambiente |
-| `release` | `String?` | `null` | Versão do app |
+| `release` | `String?` | `null` | Versão da release do app |
 | `flushIntervalSeconds` | `int` | `5` | Intervalo de envio (s) |
 | `maxBreadcrumbs` | `int` | `100` | Máx. breadcrumbs |
 | `enableFlutterErrorCapture` | `bool` | `true` | Capturar FlutterError |
@@ -253,6 +255,7 @@ await CrashLens.close();
 | `enableAutoBreadcrumbs` | `bool` | `true` | Breadcrumbs automáticos |
 | `sampleRate` | `double` | `1.0` | Taxa de amostragem |
 | `sendInDebug` | `bool` | `false` | Enviar em debug |
+| `captureLocally` | `bool` | `false` | Persistir eventos localmente para depuração |
 | `user` | `CrashLensUser?` | `null` | Usuário atual |
 | `tags` | `Map<String, dynamic>?` | `null` | Tags globais |
 | `httpTimeoutMs` | `int` | `15000` | Timeout HTTP |

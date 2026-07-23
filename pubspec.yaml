@@ -1,6 +1,6 @@
 name: crashlens_flutter
 description: CrashLens SDK - Mini Sentry para Flutter. Captura erros, exceções, logs e informações do dispositivo.
-version: 0.4.1
+version: 0.4.2
 homepage: https://crashlens.laziv.com
 repository: https://github.com/rafaelfernandesx/crashlens_package
 issue_tracker: https://github.com/rafaelfernandesx/crashlens_package/issues
@@ -20,7 +20,7 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.2.0
-  package_info_plus: ^10.2.1
+  package_info_plus: ^9.0.0
   device_info_plus: ^13.2.0
   connectivity_plus: ^7.3.0
   stack_trace: ^1.12.1

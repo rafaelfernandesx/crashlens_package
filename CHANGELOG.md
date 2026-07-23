@@ -1,3 +1,7 @@
+## 0.4.2
+
+- Feito downgrade de algumas dependencias
+
 ## 0.4.1
 
 - Adicionado suporte a `CrashLensHttpClient` para o pacote `http`

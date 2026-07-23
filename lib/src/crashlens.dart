@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -43,6 +44,8 @@ class CrashLens {
   bool _keyValid = true; // validado durante init
   SessionTracker? _session;
   SharedPreferences? _prefs;
+  // ignore: unused_field — mantido vivo para evitar GC do AppLifecycleListener
+  AppLifecycleListener? _lifecycleListener;
 
   /// Flag persistente: SDK está pausado por limite de plano excedido
   bool _paused = false;
@@ -143,6 +146,32 @@ class CrashLens {
 
       // Envia início da sessão para o backend
       await _session!.start();
+
+      // Inicia heartbeat a cada 30s para manter sessão ativa
+      _session!.startHeartbeat(const Duration(seconds: 30));
+
+      // Monitora ciclo de vida do app: envia heartbeat ao ir pra background
+      _lifecycleListener = AppLifecycleListener(
+        onPause: () {
+          // Envia heartbeat final ao ir pra background
+          _apiClient?.sendHeartbeat(
+            apiKey: _options.apiKey,
+            sessionId: _session!.sessionId,
+          );
+          _session!.stopHeartbeat();
+        },
+        onResume: () {
+          // Reinicia heartbeat ao voltar ao foreground
+          _apiClient?.sendHeartbeat(
+            apiKey: _options.apiKey,
+            sessionId: _session!.sessionId,
+          );
+          _session!.startHeartbeat(const Duration(seconds: 30));
+        },
+        onDetach: () {
+          _session!.stopHeartbeat();
+        },
+      );
     }
 
     _initialized = true;

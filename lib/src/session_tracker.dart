@@ -44,13 +44,26 @@ class SessionTracker {
   bool get crashed => _crashed;
   bool get isEnded => _ended;
 
-  /// Inicia heartbeat para detectar sessões abandonadas
+  /// Inicia heartbeat para manter a sessão ativa no backend
   void startHeartbeat(Duration interval) {
-    _heartbeat = Timer.periodic(interval, (_) {
+    _heartbeat?.cancel();
+    _heartbeat = Timer.periodic(interval, (_) async {
       if (_ended) {
         _heartbeat?.cancel();
+        return;
+      }
+      if (_apiClient != null) {
+        await _apiClient!.sendHeartbeat(
+          apiKey: apiKey,
+          sessionId: sessionId,
+        );
       }
     });
+  }
+
+  /// Para o heartbeat
+  void stopHeartbeat() {
+    _heartbeat?.cancel();
   }
 
   /// Envia o início da sessão ao backend

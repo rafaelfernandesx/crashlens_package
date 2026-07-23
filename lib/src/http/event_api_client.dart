@@ -134,6 +134,22 @@ class EventApiClient {
     }
   }
 
+  /// Envia um heartbeat para manter a sessão ativa no backend
+  Future<bool> sendHeartbeat({
+    required String apiKey,
+    required String sessionId,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/sessions/$sessionId/heartbeat');
+      final response = await _client
+          .put(uri, headers: _headers(apiKey))
+          .timeout(Duration(milliseconds: timeoutMs));
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Map<String, String> _headers(String apiKey) => {
         'Content-Type': 'application/json',
         'X-API-Key': apiKey,

@@ -63,15 +63,15 @@
     },
     {
       "name": "device_info_plus",
-      "rootUri": "file:///C:/Users/Rafael/AppData/Local/Pub/Cache/hosted/pub.dev/device_info_plus-13.2.0",
+      "rootUri": "file:///C:/Users/Rafael/AppData/Local/Pub/Cache/hosted/pub.dev/device_info_plus-12.4.0",
       "packageUri": "lib/",
-      "languageVersion": "3.10"
+      "languageVersion": "3.7"
     },
     {
       "name": "device_info_plus_platform_interface",
-      "rootUri": "file:///C:/Users/Rafael/AppData/Local/Pub/Cache/hosted/pub.dev/device_info_plus_platform_interface-8.1.0",
+      "rootUri": "file:///C:/Users/Rafael/AppData/Local/Pub/Cache/hosted/pub.dev/device_info_plus_platform_interface-7.0.3",
       "packageUri": "lib/",
-      "languageVersion": "3.10"
+      "languageVersion": "3.7"
     },
     {
       "name": "dio",
@@ -96,12 +96,6 @@
       "rootUri": "file:///C:/Users/Rafael/AppData/Local/Pub/Cache/hosted/pub.dev/ffi-2.2.0",
       "packageUri": "lib/",
       "languageVersion": "3.7"
-    },
-    {
-      "name": "ffi_leak_tracker",
-      "rootUri": "file:///C:/Users/Rafael/AppData/Local/Pub/Cache/hosted/pub.dev/ffi_leak_tracker-0.1.2",
-      "packageUri": "lib/",
-      "languageVersion": "3.10"
     },
     {
       "name": "file",
@@ -207,15 +201,15 @@
     },
     {
       "name": "package_info_plus",
-      "rootUri": "file:///C:/Users/Rafael/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus-10.2.1",
+      "rootUri": "file:///C:/Users/Rafael/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus-9.0.1",
       "packageUri": "lib/",
-      "languageVersion": "3.10"
+      "languageVersion": "3.3"
     },
     {
       "name": "package_info_plus_platform_interface",
-      "rootUri": "file:///C:/Users/Rafael/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus_platform_interface-4.1.0",
+      "rootUri": "file:///C:/Users/Rafael/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus_platform_interface-3.2.1",
       "packageUri": "lib/",
-      "languageVersion": "3.10"
+      "languageVersion": "2.18"
     },
     {
       "name": "path",
@@ -375,15 +369,15 @@
     },
     {
       "name": "win32",
-      "rootUri": "file:///C:/Users/Rafael/AppData/Local/Pub/Cache/hosted/pub.dev/win32-6.3.0",
+      "rootUri": "file:///C:/Users/Rafael/AppData/Local/Pub/Cache/hosted/pub.dev/win32-5.15.0",
       "packageUri": "lib/",
-      "languageVersion": "3.10"
+      "languageVersion": "3.8"
     },
     {
       "name": "win32_registry",
-      "rootUri": "file:///C:/Users/Rafael/AppData/Local/Pub/Cache/hosted/pub.dev/win32_registry-3.0.3",
+      "rootUri": "file:///C:/Users/Rafael/AppData/Local/Pub/Cache/hosted/pub.dev/win32_registry-2.1.0",
       "packageUri": "lib/",
-      "languageVersion": "3.10"
+      "languageVersion": "3.7"
     },
     {
       "name": "xdg_directories",

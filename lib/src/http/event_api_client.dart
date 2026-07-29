@@ -80,6 +80,10 @@ class EventApiClient {
     String? appVersion,
     String? buildNumber,
     String? deviceId,
+    String? deviceModel,
+    String? deviceManufacturer,
+    String? deviceOs,
+    String? deviceOsVersion,
     String? release,
   }) async {
     try {
@@ -95,6 +99,10 @@ class EventApiClient {
               'appVersion': appVersion,
               'buildNumber': buildNumber,
               'deviceId': deviceId,
+              'deviceModel': deviceModel,
+              'deviceManufacturer': deviceManufacturer,
+              'deviceOs': deviceOs,
+              'deviceOsVersion': deviceOsVersion,
               'release': release,
             }),
           )

@@ -55,8 +55,12 @@ class CrashLens {
   static const _storageKey = 'crashlens_events';
   static const _pausedKey = 'crashlens_paused';
   static const _pausedUntilKey = 'crashlens_paused_until';
+  static const _deviceIdKey = 'crashlens_device_id';
   static const _maxLocalErrors = 500;
   static const _retryIntervalMinutes = 15;
+
+  /// ID nativo do dispositivo obtido via device_info_plus (se disponível)
+  String? _nativeDeviceId;
 
   CrashLens._(this._options);
 
@@ -133,6 +137,7 @@ class CrashLens {
 
     // Inicia sessão com o client HTTP para enviar start/end ao backend
     if (_keyValid) {
+      final persistentDeviceId = await _getOrCreateDeviceId();
       _session = SessionTracker(
         apiKey: _options.apiKey,
         baseUrl: _options.baseUrl,
@@ -141,7 +146,11 @@ class CrashLens {
         appVersion: _packageInfo?.version,
         buildNumber: _packageInfo?.buildNumber,
         platform: _platformName(),
-        deviceId: _deviceInfo?.deviceModel,
+        deviceId: persistentDeviceId,
+        deviceModel: _deviceInfo?.deviceModel,
+        deviceManufacturer: _deviceInfo?.deviceName?.split(' ').first,
+        deviceOs: _deviceInfo?.deviceOs,
+        deviceOsVersion: _deviceInfo?.osVersion,
       );
 
       // Envia início da sessão para o backend
@@ -196,6 +205,31 @@ class CrashLens {
     }
   }
 
+  /// Retorna um ID único persistente por dispositivo.
+  /// Prioriza o ID nativo do dispositivo (ANDROID_ID, IDFV, etc.).
+  /// Caso não disponível, usa UUID persistido no SharedPreferences.
+  Future<String> _getOrCreateDeviceId() async {
+    // Prioriza ID nativo do dispositivo
+    if (_nativeDeviceId != null && _nativeDeviceId!.isNotEmpty) {
+      debugPrint('[CrashLens] Usando ID nativo do dispositivo');
+      return _nativeDeviceId!;
+    }
+
+    // Fallback: UUID persistido no SharedPreferences
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs = prefs;
+
+    final existing = prefs.getString(_deviceIdKey);
+    if (existing != null && existing.isNotEmpty) {
+      return existing;
+    }
+
+    final newId = _uuid.v4();
+    await prefs.setString(_deviceIdKey, newId);
+    debugPrint('[CrashLens] ID nativo indisponível, UUID gerado: $newId');
+    return newId;
+  }
+
   Future<void> _collectDeviceAndAppInfo() async {
     try {
       _packageInfo = await PackageInfo.fromPlatform();
@@ -205,6 +239,7 @@ class CrashLens {
       final deviceInfoPlugin = DeviceInfoPlugin();
       if (defaultTargetPlatform == TargetPlatform.android) {
         final info = await deviceInfoPlugin.androidInfo;
+        _nativeDeviceId = info.id; // ANDROID_ID (Settings.Secure)
         _deviceInfo = DeviceInfoData(
           deviceName: '${info.brand} ${info.model}',
           deviceModel: info.model,
@@ -216,6 +251,7 @@ class CrashLens {
         );
       } else if (defaultTargetPlatform == TargetPlatform.iOS) {
         final info = await deviceInfoPlugin.iosInfo;
+        _nativeDeviceId = info.identifierForVendor; // IDFV
         _deviceInfo = DeviceInfoData(
           deviceName: info.name,
           deviceModel: info.model,
@@ -227,6 +263,7 @@ class CrashLens {
         );
       } else if (defaultTargetPlatform == TargetPlatform.windows) {
         final info = await deviceInfoPlugin.windowsInfo;
+        _nativeDeviceId = info.deviceId; // Windows DeviceId
         _deviceInfo = DeviceInfoData(
           deviceName: info.computerName,
           deviceOs: 'windows',
@@ -236,6 +273,7 @@ class CrashLens {
         );
       } else if (defaultTargetPlatform == TargetPlatform.macOS) {
         final info = await deviceInfoPlugin.macOsInfo;
+        _nativeDeviceId = info.systemGUID; // macOS System GUID
         _deviceInfo = DeviceInfoData(
           deviceOs: 'macos',
           osVersion: info.osRelease,
@@ -243,6 +281,7 @@ class CrashLens {
         );
       } else if (defaultTargetPlatform == TargetPlatform.linux) {
         final info = await deviceInfoPlugin.linuxInfo;
+        _nativeDeviceId = info.machineId; // /etc/machine-id
         _deviceInfo = DeviceInfoData(
           deviceName: info.name,
           deviceOs: 'linux',

@@ -15,6 +15,10 @@ class SessionTracker {
   final String? buildNumber;
   final String? platform;
   final String? deviceId;
+  final String? deviceModel;
+  final String? deviceManufacturer;
+  final String? deviceOs;
+  final String? deviceOsVersion;
   final EventApiClient? _apiClient;
 
   bool _crashed = false;
@@ -32,6 +36,10 @@ class SessionTracker {
     this.buildNumber,
     this.platform,
     this.deviceId,
+    this.deviceModel,
+    this.deviceManufacturer,
+    this.deviceOs,
+    this.deviceOsVersion,
     EventApiClient? apiClient,
   })  : sessionId = sessionId ?? const Uuid().v4(),
         startedAt = DateTime.now(),
@@ -84,6 +92,10 @@ class SessionTracker {
       appVersion: appVersion,
       buildNumber: buildNumber,
       deviceId: deviceId,
+      deviceModel: deviceModel,
+      deviceManufacturer: deviceManufacturer,
+      deviceOs: deviceOs,
+      deviceOsVersion: deviceOsVersion,
       release: release,
     );
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
@@ -148,9 +149,10 @@ class CrashLens {
         platform: _platformName(),
         deviceId: persistentDeviceId,
         deviceModel: _deviceInfo?.deviceModel,
-        deviceManufacturer: _deviceInfo?.deviceName?.split(' ').first,
+        deviceManufacturer: _getManufacturer(),
         deviceOs: _deviceInfo?.deviceOs,
         deviceOsVersion: _deviceInfo?.osVersion,
+        locale: _deviceInfo?.locale,
       );
 
       // Envia início da sessão para o backend
@@ -205,6 +207,12 @@ class CrashLens {
     }
   }
 
+  /// Extrai o fabricante do dispositivo de forma consistente por plataforma.
+  /// Usa o valor já coletado em _deviceInfo.deviceManufacturer.
+  String? _getManufacturer() {
+    return _deviceInfo?.deviceManufacturer;
+  }
+
   /// Retorna um ID único persistente por dispositivo.
   /// Prioriza o ID nativo do dispositivo (ANDROID_ID, IDFV, etc.).
   /// Caso não disponível, usa UUID persistido no SharedPreferences.
@@ -235,72 +243,97 @@ class CrashLens {
       _packageInfo = await PackageInfo.fromPlatform();
     } catch (_) {}
 
+    // Obtém o deviceId persistente (nativo ou UUID fallback)
+    final deviceId = await _getOrCreateDeviceId();
+
+    // Coleta locale do dispositivo
+    final locale = Platform.localeName;
+
     try {
       final deviceInfoPlugin = DeviceInfoPlugin();
       if (defaultTargetPlatform == TargetPlatform.android) {
         final info = await deviceInfoPlugin.androidInfo;
         _nativeDeviceId = info.id; // ANDROID_ID (Settings.Secure)
         _deviceInfo = DeviceInfoData(
+          deviceId: deviceId,
           deviceName: '${info.brand} ${info.model}',
           deviceModel: info.model,
+          deviceManufacturer: info.brand,
           deviceOs: 'android',
           osVersion: info.version.release,
-          deviceType: 'phone',
+          deviceType: 'mobile',
           isPhysicalDevice: info.isPhysicalDevice,
           cpuArchitecture: info.supportedAbis.isNotEmpty ? info.supportedAbis.first : null,
+          locale: locale,
         );
       } else if (defaultTargetPlatform == TargetPlatform.iOS) {
         final info = await deviceInfoPlugin.iosInfo;
         _nativeDeviceId = info.identifierForVendor; // IDFV
         _deviceInfo = DeviceInfoData(
+          deviceId: deviceId,
           deviceName: info.name,
           deviceModel: info.model,
+          deviceManufacturer: 'Apple',
           deviceOs: 'ios',
           osVersion: info.systemVersion,
-          deviceType: 'phone',
+          deviceType: 'mobile',
           isPhysicalDevice: info.isPhysicalDevice,
-          cpuArchitecture: null,
+          cpuArchitecture: info.utsname.machine,
+          locale: locale,
         );
       } else if (defaultTargetPlatform == TargetPlatform.windows) {
         final info = await deviceInfoPlugin.windowsInfo;
         _nativeDeviceId = info.deviceId; // Windows DeviceId
         _deviceInfo = DeviceInfoData(
+          deviceId: deviceId,
           deviceName: info.computerName,
+          deviceManufacturer: 'Microsoft',
           deviceOs: 'windows',
           osVersion: '${info.majorVersion}.${info.minorVersion}.${info.buildNumber}',
           deviceType: 'desktop',
-          cpuArchitecture: '${info.majorVersion}.${info.minorVersion}.${info.buildNumber}',
+          cpuArchitecture: null, // Windows não fornece arquitetura via device_info_plus
+          locale: locale,
         );
       } else if (defaultTargetPlatform == TargetPlatform.macOS) {
         final info = await deviceInfoPlugin.macOsInfo;
         _nativeDeviceId = info.systemGUID; // macOS System GUID
         _deviceInfo = DeviceInfoData(
+          deviceId: deviceId,
+          deviceManufacturer: 'Apple',
           deviceOs: 'macos',
           osVersion: info.osRelease,
           deviceType: 'desktop',
+          cpuArchitecture: info.arch,
+          locale: locale,
         );
       } else if (defaultTargetPlatform == TargetPlatform.linux) {
         final info = await deviceInfoPlugin.linuxInfo;
         _nativeDeviceId = info.machineId; // /etc/machine-id
         _deviceInfo = DeviceInfoData(
+          deviceId: deviceId,
           deviceName: info.name,
           deviceOs: 'linux',
           osVersion: info.versionId,
           deviceType: 'desktop',
+          cpuArchitecture: null, // Linux não fornece arquitetura via device_info_plus
+          locale: locale,
         );
       }
     } catch (_) {}
 
-    // Preenche info do app
+    // Preenche info do app (preservando deviceId, locale e manufacturer)
     _deviceInfo = DeviceInfoData(
+      deviceId: deviceId,
       deviceName: _deviceInfo?.deviceName,
       deviceModel: _deviceInfo?.deviceModel,
+      deviceManufacturer: _deviceInfo?.deviceManufacturer,
       deviceOs: _deviceInfo?.deviceOs,
       osVersion: _deviceInfo?.osVersion,
       deviceType: _deviceInfo?.deviceType,
       screenResolution: _deviceInfo?.screenResolution,
       isPhysicalDevice: _deviceInfo?.isPhysicalDevice,
       cpuArchitecture: _deviceInfo?.cpuArchitecture,
+      locale: _deviceInfo?.locale,
       appVersion: _packageInfo?.version,
       buildNumber: _packageInfo?.buildNumber,
     );

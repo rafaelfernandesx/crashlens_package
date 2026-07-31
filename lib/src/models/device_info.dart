@@ -1,7 +1,12 @@
 /// Informações do dispositivo coletadas no momento do erro
 class DeviceInfoData {
+  /// ID único do dispositivo (ANDROID_ID, IDFV, UUID, etc.)
+  /// Vincula eventos ao registro Device no backend
+  final String? deviceId;
   final String? deviceName;
   final String? deviceModel;
+  /// Fabricante do dispositivo (ex: "Apple", "Samsung", "Google")
+  final String? deviceManufacturer;
   final String? deviceOs;
   final String? osVersion;
   final String? deviceType;
@@ -15,8 +20,10 @@ class DeviceInfoData {
   final String? buildNumber;
 
   DeviceInfoData({
+    this.deviceId,
     this.deviceName,
     this.deviceModel,
+    this.deviceManufacturer,
     this.deviceOs,
     this.osVersion,
     this.deviceType,
@@ -31,8 +38,10 @@ class DeviceInfoData {
   });
 
   Map<String, dynamic> toJson() => {
+        'deviceId': deviceId,
         'deviceName': deviceName,
         'deviceModel': deviceModel,
+        'deviceManufacturer': deviceManufacturer,
         'deviceOs': deviceOs,
         'osVersion': osVersion,
         'deviceType': deviceType,
@@ -48,8 +57,10 @@ class DeviceInfoData {
 
   factory DeviceInfoData.fromJson(Map<String, dynamic> json) =>
       DeviceInfoData(
+        deviceId: json['deviceId'] as String?,
         deviceName: json['deviceName'] as String?,
         deviceModel: json['deviceModel'] as String?,
+        deviceManufacturer: json['deviceManufacturer'] as String?,
         deviceOs: json['deviceOs'] as String?,
         osVersion: json['osVersion'] as String?,
         deviceType: json['deviceType'] as String?,

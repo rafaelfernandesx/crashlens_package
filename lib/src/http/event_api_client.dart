@@ -84,6 +84,7 @@ class EventApiClient {
     String? deviceManufacturer,
     String? deviceOs,
     String? deviceOsVersion,
+    String? locale,
     String? release,
   }) async {
     try {
@@ -103,6 +104,7 @@ class EventApiClient {
               'deviceManufacturer': deviceManufacturer,
               'deviceOs': deviceOs,
               'deviceOsVersion': deviceOsVersion,
+              'locale': locale,
               'release': release,
             }),
           )

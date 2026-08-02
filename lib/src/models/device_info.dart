@@ -1,3 +1,5 @@
+import 'platform_device_info.dart';
+
 /// Informações do dispositivo coletadas no momento do erro
 class DeviceInfoData {
   /// ID único do dispositivo (ANDROID_ID, IDFV, UUID, etc.)
@@ -18,6 +20,9 @@ class DeviceInfoData {
   final int? totalMemoryMb;
   final String? appVersion;
   final String? buildNumber;
+  
+  /// Informações específicas da plataforma (Android, iOS, Windows, macOS, Linux, Web)
+  final PlatformDeviceInfo? platformInfo;
 
   DeviceInfoData({
     this.deviceId,
@@ -35,6 +40,7 @@ class DeviceInfoData {
     this.totalMemoryMb,
     this.appVersion,
     this.buildNumber,
+    this.platformInfo,
   });
 
   Map<String, dynamic> toJson() => {
@@ -53,6 +59,7 @@ class DeviceInfoData {
         'totalMemoryMb': totalMemoryMb,
         'appVersion': appVersion,
         'buildNumber': buildNumber,
+        'platformInfo': platformInfo?.toJson(),
       };
 
   factory DeviceInfoData.fromJson(Map<String, dynamic> json) =>
@@ -72,5 +79,8 @@ class DeviceInfoData {
         totalMemoryMb: json['totalMemoryMb'] as int?,
         appVersion: json['appVersion'] as String?,
         buildNumber: json['buildNumber'] as String?,
+        platformInfo: json['platformInfo'] != null 
+            ? PlatformDeviceInfo.fromJson(json['platformInfo'] as Map<String, dynamic>)
+            : null,
       );
 }

@@ -20,6 +20,7 @@ class SessionTracker {
   final String? deviceOs;
   final String? deviceOsVersion;
   final String? locale;
+  final Map<String, dynamic>? platformInfo;
   final EventApiClient? _apiClient;
 
   bool _crashed = false;
@@ -42,6 +43,7 @@ class SessionTracker {
     this.deviceOs,
     this.deviceOsVersion,
     this.locale,
+    this.platformInfo,
     EventApiClient? apiClient,
   })  : sessionId = sessionId ?? const Uuid().v4(),
         startedAt = DateTime.now(),
@@ -100,6 +102,7 @@ class SessionTracker {
       deviceOsVersion: deviceOsVersion,
       locale: locale,
       release: release,
+      platformInfo: platformInfo,
     );
 
     if (ok) {

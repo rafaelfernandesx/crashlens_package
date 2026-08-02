@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stack_trace/stack_trace.dart' as st;
 import 'package:uuid/uuid.dart';
 import '../crashlens_flutter.dart';
+import 'models/platform_device_info.dart';
 
 /// Classe principal do CrashLens SDK
 ///
@@ -153,6 +154,7 @@ class CrashLens {
         deviceOs: _deviceInfo?.deviceOs,
         deviceOsVersion: _deviceInfo?.osVersion,
         locale: _deviceInfo?.locale,
+        platformInfo: _deviceInfo?.platformInfo?.toJson(),
       );
 
       // Envia início da sessão para o backend
@@ -243,17 +245,77 @@ class CrashLens {
       _packageInfo = await PackageInfo.fromPlatform();
     } catch (_) {}
 
-    // Obtém o deviceId persistente (nativo ou UUID fallback)
-    final deviceId = await _getOrCreateDeviceId();
-
     // Coleta locale do dispositivo
     final locale = Platform.localeName;
 
+    // PASSO 1: Coletar o native ID ANTES de chamar _getOrCreateDeviceId()
+    // Isso garante que o ID nativo (ANDROID_ID, IDFV, etc.) seja usado
+    // em vez de gerar um UUID desnecessário
     try {
       final deviceInfoPlugin = DeviceInfoPlugin();
       if (defaultTargetPlatform == TargetPlatform.android) {
         final info = await deviceInfoPlugin.androidInfo;
         _nativeDeviceId = info.id; // ANDROID_ID (Settings.Secure)
+      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final info = await deviceInfoPlugin.iosInfo;
+        _nativeDeviceId = info.identifierForVendor; // IDFV
+      } else if (defaultTargetPlatform == TargetPlatform.windows) {
+        final info = await deviceInfoPlugin.windowsInfo;
+        _nativeDeviceId = info.deviceId; // Windows DeviceId
+      } else if (defaultTargetPlatform == TargetPlatform.macOS) {
+        final info = await deviceInfoPlugin.macOsInfo;
+        _nativeDeviceId = info.systemGUID; // macOS System GUID
+      } else if (defaultTargetPlatform == TargetPlatform.linux) {
+        final info = await deviceInfoPlugin.linuxInfo;
+        _nativeDeviceId = info.machineId; // /etc/machine-id
+      }
+    } catch (_) {}
+
+    // PASSO 2: Agora _nativeDeviceId está definido, obter o deviceId persistente
+    // Se _nativeDeviceId existe, será usado; senão, UUID será gerado/recuperado
+    final deviceId = await _getOrCreateDeviceId();
+    debugPrint('[CrashLens] DeviceId final: $deviceId (native: $_nativeDeviceId)');
+
+    // PASSO 3: Coletar informações detalhadas da plataforma
+    PlatformDeviceInfo? platformInfo;
+
+    try {
+      final deviceInfoPlugin = DeviceInfoPlugin();
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final info = await deviceInfoPlugin.androidInfo;
+        
+        // Coleta informações específicas do Android
+        platformInfo = PlatformDeviceInfo(
+          android: AndroidPlatformInfo(
+            brand: info.brand,
+            model: info.model,
+            manufacturer: info.manufacturer,
+            deviceName: info.device,
+            product: info.product,
+            board: info.board,
+            hardware: info.hardware,
+            supportedAbis: info.supportedAbis.join(','),
+            bootloader: info.bootloader,
+            display: info.display,
+            fingerprint: info.fingerprint,
+            host: info.host,
+            buildId: info.id,
+            tags: info.tags,
+            type: info.type,
+            osVersion: info.version.release,
+            sdkInt: info.version.sdkInt,
+            securityPatch: info.version.securityPatch,
+            codename: info.version.codename,
+            isPhysicalDevice: info.isPhysicalDevice,
+            isLowRamDevice: info.isLowRamDevice,
+            systemFeatures: info.systemFeatures.join(','),
+            freeDiskSize: info.freeDiskSize,
+            totalDiskSize: info.totalDiskSize,
+            physicalRamSize: info.physicalRamSize,
+            availableRamSize: info.availableRamSize,
+          ),
+        );
+        
         _deviceInfo = DeviceInfoData(
           deviceId: deviceId,
           deviceName: '${info.brand} ${info.model}',
@@ -265,10 +327,36 @@ class CrashLens {
           isPhysicalDevice: info.isPhysicalDevice,
           cpuArchitecture: info.supportedAbis.isNotEmpty ? info.supportedAbis.first : null,
           locale: locale,
+          platformInfo: platformInfo,
         );
       } else if (defaultTargetPlatform == TargetPlatform.iOS) {
         final info = await deviceInfoPlugin.iosInfo;
-        _nativeDeviceId = info.identifierForVendor; // IDFV
+        
+        // Coleta informações específicas do iOS
+        platformInfo = PlatformDeviceInfo(
+          ios: IosPlatformInfo(
+            name: info.name,
+            systemName: info.systemName,
+            systemVersion: info.systemVersion,
+            model: info.model,
+            modelName: info.modelName,
+            localizedModel: info.localizedModel,
+            identifierForVendor: info.identifierForVendor,
+            isPhysicalDevice: info.isPhysicalDevice,
+            isiOSAppOnMac: info.isiOSAppOnMac,
+            isiOSAppOnVision: info.isiOSAppOnVision,
+            utsnameSysname: info.utsname.sysname,
+            utsnameNodename: info.utsname.nodename,
+            utsnameRelease: info.utsname.release,
+            utsnameVersion: info.utsname.version,
+            utsnameMachine: info.utsname.machine,
+            freeDiskSize: info.freeDiskSize,
+            totalDiskSize: info.totalDiskSize,
+            physicalRamSize: info.physicalRamSize,
+            availableRamSize: info.availableRamSize,
+          ),
+        );
+        
         _deviceInfo = DeviceInfoData(
           deviceId: deviceId,
           deviceName: info.name,
@@ -280,10 +368,40 @@ class CrashLens {
           isPhysicalDevice: info.isPhysicalDevice,
           cpuArchitecture: info.utsname.machine,
           locale: locale,
+          platformInfo: platformInfo,
         );
       } else if (defaultTargetPlatform == TargetPlatform.windows) {
         final info = await deviceInfoPlugin.windowsInfo;
-        _nativeDeviceId = info.deviceId; // Windows DeviceId
+        
+        // Coleta informações específicas do Windows
+        platformInfo = PlatformDeviceInfo(
+          windows: WindowsPlatformInfo(
+            computerName: info.computerName,
+            userName: info.userName,
+            productName: info.productName,
+            editionId: info.editionId,
+            displayVersion: info.displayVersion,
+            releaseId: info.releaseId,
+            productId: info.productId,
+            majorVersion: info.majorVersion,
+            minorVersion: info.minorVersion,
+            buildNumber: info.buildNumber,
+            platformId: info.platformId,
+            csdVersion: info.csdVersion,
+            servicePackMajor: info.servicePackMajor,
+            servicePackMinor: info.servicePackMinor,
+            numberOfCores: info.numberOfCores,
+            systemMemoryInMegabytes: info.systemMemoryInMegabytes,
+            productType: info.productType,
+            suitMask: info.suitMask,
+            buildLab: info.buildLab,
+            buildLabEx: info.buildLabEx,
+            windowsDeviceId: info.deviceId,
+            registeredOwner: info.registeredOwner,
+            installDate: info.installDate.toIso8601String(),
+          ),
+        );
+        
         _deviceInfo = DeviceInfoData(
           deviceId: deviceId,
           deviceName: info.computerName,
@@ -293,10 +411,31 @@ class CrashLens {
           deviceType: 'desktop',
           cpuArchitecture: null, // Windows não fornece arquitetura via device_info_plus
           locale: locale,
+          platformInfo: platformInfo,
         );
       } else if (defaultTargetPlatform == TargetPlatform.macOS) {
         final info = await deviceInfoPlugin.macOsInfo;
-        _nativeDeviceId = info.systemGUID; // macOS System GUID
+        
+        // Coleta informações específicas do macOS
+        platformInfo = PlatformDeviceInfo(
+          macos: MacOsPlatformInfo(
+            computerName: info.computerName,
+            hostName: info.hostName,
+            model: info.model,
+            modelName: info.modelName,
+            arch: info.arch,
+            kernelVersion: info.kernelVersion,
+            osRelease: info.osRelease,
+            majorVersion: info.majorVersion,
+            minorVersion: info.minorVersion,
+            patchVersion: info.patchVersion,
+            activeCPUs: info.activeCPUs,
+            memorySize: info.memorySize,
+            cpuFrequency: info.cpuFrequency,
+            systemGUID: info.systemGUID,
+          ),
+        );
+        
         _deviceInfo = DeviceInfoData(
           deviceId: deviceId,
           deviceManufacturer: 'Apple',
@@ -305,10 +444,28 @@ class CrashLens {
           deviceType: 'desktop',
           cpuArchitecture: info.arch,
           locale: locale,
+          platformInfo: platformInfo,
         );
       } else if (defaultTargetPlatform == TargetPlatform.linux) {
         final info = await deviceInfoPlugin.linuxInfo;
-        _nativeDeviceId = info.machineId; // /etc/machine-id
+        
+        // Coleta informações específicas do Linux
+        platformInfo = PlatformDeviceInfo(
+          linux: LinuxPlatformInfo(
+            name: info.name,
+            prettyName: info.prettyName,
+            distroId: info.id,
+            idLike: info.idLike?.join(','),
+            version: info.version,
+            versionId: info.versionId,
+            versionCodename: info.versionCodename,
+            buildId: info.buildId,
+            variant: info.variant,
+            variantId: info.variantId,
+            machineId: info.machineId,
+          ),
+        );
+        
         _deviceInfo = DeviceInfoData(
           deviceId: deviceId,
           deviceName: info.name,
@@ -317,11 +474,12 @@ class CrashLens {
           deviceType: 'desktop',
           cpuArchitecture: null, // Linux não fornece arquitetura via device_info_plus
           locale: locale,
+          platformInfo: platformInfo,
         );
       }
     } catch (_) {}
 
-    // Preenche info do app (preservando deviceId, locale e manufacturer)
+    // Preenche info do app (preservando deviceId, locale, manufacturer e platformInfo)
     _deviceInfo = DeviceInfoData(
       deviceId: deviceId,
       deviceName: _deviceInfo?.deviceName,
@@ -336,6 +494,7 @@ class CrashLens {
       locale: _deviceInfo?.locale,
       appVersion: _packageInfo?.version,
       buildNumber: _packageInfo?.buildNumber,
+      platformInfo: _deviceInfo?.platformInfo,
     );
   }
 

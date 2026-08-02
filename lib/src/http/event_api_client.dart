@@ -86,27 +86,30 @@ class EventApiClient {
     String? deviceOsVersion,
     String? locale,
     String? release,
+    Map<String, dynamic>? platformInfo,
   }) async {
     try {
       final uri = Uri.parse('$baseUrl/sessions');
+      final body = {
+        'sessionId': sessionId,
+        'startedAt': startedAt,
+        'platform': platform,
+        'appVersion': appVersion,
+        'buildNumber': buildNumber,
+        'deviceId': deviceId,
+        'deviceModel': deviceModel,
+        'deviceManufacturer': deviceManufacturer,
+        'deviceOs': deviceOs,
+        'deviceOsVersion': deviceOsVersion,
+        'locale': locale,
+        'release': release,
+        if (platformInfo != null) 'platformInfo': platformInfo,
+      };
       final response = await _client
           .post(
             uri,
             headers: _headers(apiKey),
-            body: jsonEncode({
-              'sessionId': sessionId,
-              'startedAt': startedAt,
-              'platform': platform,
-              'appVersion': appVersion,
-              'buildNumber': buildNumber,
-              'deviceId': deviceId,
-              'deviceModel': deviceModel,
-              'deviceManufacturer': deviceManufacturer,
-              'deviceOs': deviceOs,
-              'deviceOsVersion': deviceOsVersion,
-              'locale': locale,
-              'release': release,
-            }),
+            body: jsonEncode(body),
           )
           .timeout(Duration(milliseconds: timeoutMs));
 

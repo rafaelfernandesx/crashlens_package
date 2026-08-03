@@ -1,3 +1,11 @@
+## 0.5.0
+
+- Rastreamento avançado de dispositivo com metadados específicos por plataforma (Android, iOS, Windows, macOS, Linux)
+- Coleta de locale, fabricante e IDs nativos do dispositivo
+- Metadados de sessão expandidos com enriquecimento de sessão
+- Gerenciamento de ciclo de vida e heartbeat de sessão
+- Melhorias no envio de eventos com dados de dispositivo detalhados
+
 ## 0.4.2
 
 - Feito downgrade de algumas dependencias

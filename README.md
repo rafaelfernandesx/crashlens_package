@@ -7,7 +7,7 @@ SDK Flutter para captura de erros e eventos do **CrashLens** — uma alternativa
 ```yaml
 # pubspec.yaml
 dependencies:
-  crashlens_flutter: ^0.4.1
+  crashlens_flutter: ^0.5.0
 ```
 
 ```bash

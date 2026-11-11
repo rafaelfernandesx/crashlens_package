@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show kReleaseMode;
+
 import 'models/event.dart';
 import 'models/user.dart';
 
@@ -11,6 +13,10 @@ class CrashLensOptions {
 
   /// Versão da release do app
   final String? release;
+
+  /// Ambiente enviado em todos os eventos (padrão: 'production' em builds
+  /// release, 'development' nos demais)
+  final String environment;
 
   /// Intervalo de envio em segundos (padrão: 5s)
   final int flushIntervalSeconds;
@@ -61,6 +67,7 @@ class CrashLensOptions {
     required this.apiKey,
     this.baseUrl = 'https://apicrashlens.laziv.com/api',
     this.release,
+    String? environment,
     this.flushIntervalSeconds = 5,
     this.maxBreadcrumbs = 100,
     this.enableFlutterErrorCapture = true,
@@ -75,5 +82,6 @@ class CrashLensOptions {
     this.maxRetries = 3,
     this.beforeSend,
     this.captureLocally = false,
-  });
+  }) : environment =
+            environment ?? (kReleaseMode ? 'production' : 'development');
 }

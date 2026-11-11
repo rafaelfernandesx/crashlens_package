@@ -8,7 +8,6 @@ import 'package:flutter/widgets.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:stack_trace/stack_trace.dart' as st;
 import 'package:uuid/uuid.dart';
 import '../crashlens_flutter.dart';
 import 'models/platform_device_info.dart';
@@ -112,6 +111,7 @@ class CrashLens {
       apiClient: _apiClient!,
       maxRetries: _options.maxRetries,
       onBatchSent: _onBatchSent,
+      onEventsDropped: _onEventsDropped,
       onQuotaExceeded: () => CrashLens.pause(reason: 'Limite do plano atingido (detectado pela API)'),
     );
     _queue!.startAutoFlush(
@@ -510,7 +510,6 @@ class CrashLens {
         error: error,
         exceptionMessage: error.toString(),
         stackTrace: stack.toString(),
-        fingerprint: _generateFingerprint(error, stack),
         release: _options.release ?? _packageInfo?.version,
         user: _options.user,
         tags: _options.tags,
@@ -552,7 +551,6 @@ class CrashLens {
       error: error,
       exceptionMessage: error.toString(),
       stackTrace: stack.toString(),
-      fingerprint: instance._generateFingerprint(error, stack),
       release: instance._options.release ?? instance._packageInfo?.version,
       user: instance._options.user,
       tags: {...?instance._options.tags, ...?tags},
@@ -839,10 +837,10 @@ class CrashLens {
       }
     }
 
-    // Adiciona eventId e fingerprint se não definido
-    final effectiveFingerprint = event.fingerprint ?? computeEventHash(event);
+    // O fingerprint só é enviado quando definido explicitamente pelo desenvolvedor;
+    // o agrupamento automático é feito pelo servidor.
     final finalEvent = CrashLensEvent(
-      eventId: _uuid.v4(),
+      eventId: event.eventId ?? _uuid.v4(),
       apiKey: event.apiKey.isNotEmpty ? event.apiKey : _options.apiKey,
       projectId: event.projectId,
       message: event.message,
@@ -850,8 +848,10 @@ class CrashLens {
       exceptionType: event.exceptionType,
       exceptionMessage: event.exceptionMessage,
       stackTrace: event.stackTrace,
-      fingerprint: effectiveFingerprint,
+      fingerprint: event.fingerprint,
       release: event.release ?? _options.release ?? _packageInfo?.version,
+      environment: event.environment ?? _options.environment,
+      context: event.context,
       user: event.user ?? _options.user,
       url: event.url,
       tags: {...?_options.tags, ...?event.tags},
@@ -911,6 +911,32 @@ class CrashLens {
     for (final stored in unsent) {
       _queue?.enqueue(stored.event);
     }
+  }
+
+  /// Callback chamado pela EventQueue quando eventos são rejeitados em definitivo
+  /// (400/413/422): remove-os do armazenamento local para não reenviar a cada execução.
+  void _onEventsDropped(List<CrashLensEvent> droppedEvents) {
+    final prefs = _prefs;
+    if (prefs == null) return;
+
+    final raw = prefs.getStringList(_storageKey) ?? [];
+    if (raw.isEmpty) return;
+
+    final ids = droppedEvents.map((e) => e.eventId).whereType<String>().toSet();
+    final updated = <String>[];
+    for (final entry in raw) {
+      try {
+        final decoded = jsonDecode(entry) as Map<String, dynamic>;
+        final stored = _StoredEvent.fromJson(decoded);
+        if (stored.event.eventId != null && ids.contains(stored.event.eventId)) {
+          continue;
+        }
+      } catch (_) {
+        // Entries inválidas: mantém por segurança
+      }
+      updated.add(entry);
+    }
+    prefs.setStringList(_storageKey, updated);
   }
 
   /// Callback chamado pela EventQueue quando um lote é enviado com sucesso.
@@ -991,32 +1017,6 @@ class CrashLens {
 
     final bytes = utf8.encode(buffer.toString());
     return sha256.convert(bytes).toString();
-  }
-
-  /// Gera um fingerprint único baseado no erro e stack trace
-  String _generateFingerprint(dynamic error, StackTrace stackTrace) {
-    try {
-      final chain = st.Trace.from(stackTrace);
-      final frames = chain.frames;
-
-      if (frames.isEmpty) {
-        return '${error.runtimeType.hashCode}-no-frames';
-      }
-
-      // Pega os 5 frames principais
-      final keyFrames = frames.take(5).map((f) {
-        return '${f.uri}:${f.line}';
-      }).join('|');
-
-      final type = error.runtimeType.toString();
-      return '${type.hashCode}-${keyFrames.hashCode}';
-    } catch (_) {
-      try {
-        return '${error.runtimeType.hashCode}-${stackTrace.hashCode}';
-      } catch (_) {
-        return DateTime.now().millisecondsSinceEpoch.toString();
-      }
-    }
   }
 
   /// Força o envio imediato de todos os eventos pendentes

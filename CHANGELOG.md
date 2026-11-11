@@ -1,3 +1,13 @@
+## Unreleased
+
+- Novo `CrashLensOptions.environment` (padrão: `production` em release, `development` nos demais); enviado em todos os eventos
+- O SDK não envia mais fingerprint calculado automaticamente (agrupamento feito pelo servidor); só é enviado se definido via `captureEvent(fingerprint: ...)`
+- `eventId` (UUID) enviado em todos os eventos para idempotência no servidor
+- Fila: lotes limitados a 25 eventos / ~512KB, backoff exponencial em falhas transitórias (não descarta mais após 3 tentativas rápidas; eventos seguem persistidos), 413/400/422 descartam o evento, 429 respeita `Retry-After` sem pausar, apenas 402 pausa o SDK
+- Suporte a resultados por item na resposta do `/events/batch`
+- Payload limitado: message ~8KB, stack ~64KB, últimos 50 breadcrumbs (data ~2KB), extra/tags/context ~32KB
+- `EventApiClient.postEvent`/`postBatch` retornam `SendResult` com status e Retry-After (`sendEvent`/`sendBatch` mantidos)
+
 ## 0.5.0
 
 - Rastreamento avançado de dispositivo com metadados específicos por plataforma (Android, iOS, Windows, macOS, Linux)

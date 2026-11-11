@@ -1,4 +1,5 @@
 import '../enums/event_severity.dart';
+import '../payload_limits.dart';
 import 'breadcrumb.dart';
 import 'device_info.dart';
 import 'user.dart';
@@ -15,6 +16,7 @@ class CrashLensEvent {
   final String? stackTrace;
   final String? fingerprint;
   final String? release;
+  final String? environment;
   final String? context;
   final CrashLensUser? user;
   final String? url;
@@ -42,6 +44,7 @@ class CrashLensEvent {
     this.stackTrace,
     this.fingerprint,
     this.release,
+    this.environment,
     this.context,
     this.user,
     this.url,
@@ -69,6 +72,7 @@ class CrashLensEvent {
     String? stackTrace,
     String? fingerprint,
     String? release,
+    String? environment,
     String? context,
     CrashLensUser? user,
     String? url,
@@ -91,6 +95,7 @@ class CrashLensEvent {
         stackTrace: stackTrace ?? this.stackTrace,
         fingerprint: fingerprint ?? this.fingerprint,
         release: release ?? this.release,
+        environment: environment ?? this.environment,
         context: context ?? this.context,
         user: user ?? this.user,
         url: url ?? this.url,
@@ -114,6 +119,7 @@ class CrashLensEvent {
         'stackTrace': stackTrace,
         'fingerprint': fingerprint,
         'release': release,
+        'environment': environment,
         'context': context,
         'user': user?.toJson(),
         'url': url,
@@ -125,6 +131,43 @@ class CrashLensEvent {
         'handled': handled,
         'sessionId': sessionId,
       };
+
+  /// JSON enviado à API: igual a [toJson], mas com limites de tamanho aplicados
+  /// (message ~8KB, stack ~64KB, últimos 50 breadcrumbs com data ~2KB,
+  /// extra/tags/context ~32KB) e sem campos nulos.
+  Map<String, dynamic> toIngestJson() {
+    final json = toJson();
+    json['message'] = PayloadLimits.truncate(message, PayloadLimits.message);
+    if (exceptionMessage != null) {
+      json['exceptionMessage'] =
+          PayloadLimits.truncate(exceptionMessage!, PayloadLimits.message);
+    }
+    if (stackTrace != null) {
+      json['stackTrace'] =
+          PayloadLimits.truncate(stackTrace!, PayloadLimits.stackTrace);
+    }
+    if (context != null) {
+      json['context'] = PayloadLimits.truncate(context!, PayloadLimits.blob);
+    }
+    if (tags != null) {
+      json['tags'] = PayloadLimits.capMap(tags!, PayloadLimits.blob);
+    }
+    if (extra != null) {
+      json['extra'] = PayloadLimits.capMap(extra!, PayloadLimits.blob);
+    }
+    final recent = breadcrumbs.length > PayloadLimits.breadcrumbs
+        ? breadcrumbs.sublist(breadcrumbs.length - PayloadLimits.breadcrumbs)
+        : breadcrumbs;
+    json['breadcrumbs'] = recent.map((b) {
+      final bj = b.toJson();
+      if (b.data != null) {
+        bj['data'] = PayloadLimits.capMap(b.data!, PayloadLimits.breadcrumbData);
+      }
+      return bj;
+    }).toList();
+    json.removeWhere((_, v) => v == null);
+    return json;
+  }
 
   factory CrashLensEvent.fromJson(Map<String, dynamic> json) =>
       CrashLensEvent(
@@ -138,6 +181,7 @@ class CrashLensEvent {
         stackTrace: json['stackTrace'] as String?,
         fingerprint: json['fingerprint'] as String?,
         release: json['release'] as String?,
+        environment: json['environment'] as String?,
         context: json['context'] as String?,
         user: json['user'] != null
             ? CrashLensUser.fromJson(json['user'] as Map<String, dynamic>)

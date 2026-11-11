@@ -1,4 +1,4 @@
-## Unreleased
+## 0.6.0
 
 - Novo `CrashLensOptions.environment` (padrão: `production` em release, `development` nos demais); enviado em todos os eventos
 - O SDK não envia mais fingerprint calculado automaticamente (agrupamento feito pelo servidor); só é enviado se definido via `captureEvent(fingerprint: ...)`
